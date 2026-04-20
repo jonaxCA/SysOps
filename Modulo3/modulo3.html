@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador OS: CPU & Memoria</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- ================================================================
+         HEADER GLOBAL — Controles de simulación
+    ================================================================ -->
+    <header>
+        <div class="header-title">
+            <h1>Simulador de Sistemas Operativos</h1>
+            <p>Planificación de CPU &amp; Paginación Interactiva</p>
+        </div>
+        <div class="controls">
+            <button id="btn-preload" class="btn"
+                style="background:#44475a; color:white;"
+                data-tooltip="Carga 4 procesos de ejemplo y selecciona Round Robin">
+                📚 Precargar Ejemplo
+            </button>
+            <button id="btn-start"  class="btn success"
+                data-tooltip="Inicia o reanuda la simulación">▶ Iniciar</button>
+            <button id="btn-pause"  class="btn warning"
+                data-tooltip="Pausa la simulación">⏸ Pausar</button>
+            <button id="btn-reset"  class="btn danger"
+                data-tooltip="Reinicia todo desde cero">⏹ Reiniciar</button>
+            <label style="display:flex; flex-direction:column; font-size:0.8em; color:#aaa;">
+                Velocidad
+                <input type="range" id="speed-slider" min="100" max="2000"
+                    value="800" dir="rtl"
+                    data-tooltip="Milisegundos entre ticks (izq = más rápido)">
+            </label>
+        </div>
+    </header>
+
+    <!-- ================================================================
+         DASHBOARD — tres columnas
+    ================================================================ -->
+    <div class="dashboard">
+
+        <!-- ── PANEL IZQUIERDO: Configuración ── -->
+        <aside class="panel config-panel">
+            <h2>Configuración</h2>
+
+            <!-- 1. Algoritmos -->
+            <div class="card">
+                <h3>1. Algoritmos</h3>
+                <div class="form-group">
+                    <div class="form-row">
+                        <select id="cpu-algo"
+                            data-tooltip="Algoritmo de Planificación de CPU">
+                            <option value="FCFS">CPU: FCFS</option>
+                            <option value="SJF">CPU: SJF</option>
+                            <option value="RR">CPU: Round Robin</option>
+                            <option value="PRIORITY">CPU: Prioridades</option>
+                        </select>
+                        <!-- Solo visible en RR -->
+                        <input type="number" id="cpu-quantum" placeholder="Quantum"
+                            value="2" min="1" style="display:none;"
+                            data-tooltip="Quantum de tiempo para Round Robin">
+                    </div>
+                    <select id="mem-algo"
+                        data-tooltip="Algoritmo de Reemplazo de Páginas">
+                        <option value="FIFO">Memoria: FIFO</option>
+                        <option value="LRU">Memoria: LRU</option>
+                        <option value="OPTIMAL">Memoria: Óptimo</option>
+                        <option value="CLOCK">Memoria: Reloj (Clock)</option>
+                        <!-- CORREGIDO: value="SECOND_CHANCE" -->
+                        <option value="SECOND_CHANCE">Memoria: Segunda Oportunidad</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 2. Hardware Físico -->
+            <div class="card">
+                <h3>2. Hardware Físico</h3>
+                <div class="form-group">
+                    <div class="form-row">
+                        <label style="font-size:0.8em; color:#aaa; flex:1;">
+                            Tam. Memoria
+                            <input type="number" id="mem-size" value="64" min="4" step="4">
+                        </label>
+                        <label style="font-size:0.8em; color:#aaa; flex:1;">
+                            Tam. Página
+                            <input type="number" id="page-size" value="8" min="1">
+                        </label>
+                    </div>
+                    <p style="font-size:0.85em; color:var(--state-new);
+                        text-align:center; margin-top:4px;">
+                        Marcos resultantes: <strong id="calculated-frames">8</strong>
+                    </p>
+                </div>
+            </div>
+
+            <!-- 3. Nuevo Proceso (Manual) -->
+            <div class="card">
+                <h3>3. Nuevo Proceso</h3>
+                <div class="form-group">
+                    <div class="form-row">
+                        <input type="text"   id="p-id"      placeholder="PID (Ej: P1)">
+                        <input type="number" id="p-arrival" placeholder="Llegada" min="0">
+                    </div>
+                    <div class="form-row">
+                        <input type="number" id="p-burst"    placeholder="Ráfaga"   min="1">
+                        <input type="number" id="p-priority" placeholder="Prioridad" min="1">
+                    </div>
+                    <input type="number" id="p-pages"
+                        placeholder="N° de Páginas" min="1" value="4">
+                    <button id="btn-add-process" class="btn success"
+                        style="justify-content:center;">➕ Añadir Proceso</button>
+                </div>
+                <!-- Lista de procesos añadidos -->
+                <ul id="process-list-ui"
+                    style="list-style:none; margin-top:8px; font-size:0.8em;
+                           max-height:120px; overflow-y:auto;"></ul>
+            </div>
+
+            <!-- 4. Carga desde archivo -->
+            <div class="card">
+                <h3>4. Carga desde Archivo</h3>
+                <p style="font-size:0.75em; color:#888; margin-bottom:8px;">
+                    Formato líneas proceso: <code>PID,Arrival,Burst,Priority,Pages</code><br>
+                    Formato hardware: <code>Memoria=64</code> / <code>PageSize=8</code> /
+                    <code>Frames=8</code>
+                </p>
+                <label class="file-upload-wrapper">
+                    <span class="file-upload-label">📂 Subir Config (.txt)</span>
+                    <input type="file" id="file-upload" accept=".txt">
+                </label>
+            </div>
+        </aside>
+
+        <!-- ── PANEL CENTRAL: CPU ── -->
+        <main class="panel cpu-panel">
+            <h2>
+                Visualización de CPU
+                <span id="clock-display"
+                    style="float:right; color:var(--text-light); font-size:0.9em;">
+                    Tick: 0
+                </span>
+            </h2>
+
+            <!-- Diagrama de transición de estados -->
+            <div class="state-diagram" id="state-diagram">
+                <div class="diagram-row">
+                    <span class="badge new">NEW</span>
+                    <span class="arrow" id="arrow-ready">➔</span>
+                    <span class="badge ready">READY</span>
+                    <span class="arrow" id="arrow-run">➔</span>
+                    <span class="badge running">RUNNING</span>
+                    <span class="arrow" id="arrow-term">➔</span>
+                    <span class="badge terminated">TERMINATED</span>
+                </div>
+                <!-- Flechas de retorno: RUNNING→READY (RR) y WAITING→READY (I/O) -->
+                <div class="return-path path-rr"  id="path-rr"></div>
+                <div class="return-path path-io"  id="path-io"></div>
+                <div style="position:absolute; bottom:-14px; left:50%;
+                     transform:translateX(-50%); z-index:3;">
+                    <span class="badge waiting">WAITING (I/O)</span>
+                </div>
+            </div>
+
+            <!-- Colas READY y WAITING -->
+            <div style="display:flex; gap:15px; margin-top:28px;">
+                <div class="queue-container" style="flex:1;">
+                    <h3>Ready Queue</h3>
+                    <div class="queue" id="ready-queue"></div>
+                </div>
+                <div class="queue-container" style="flex:1;">
+                    <h3>Waiting Queue (I/O)</h3>
+                    <div class="queue waiting-queue" id="waiting-queue"></div>
+                </div>
+            </div>
+
+            <!-- CPU Core + botón I/O -->
+            <div style="margin-top:15px; text-align:center;">
+                <h3>Procesador Central</h3>
+                <div class="cpu-core" id="cpu-core">Inactivo</div>
+                <button id="btn-io" class="btn warning"
+                    style="margin-top:10px; display:none; margin-left:auto;
+                           margin-right:auto;"
+                    data-tooltip="Envía el proceso actual a estado WAITING (I/O)">
+                    ⚡ Simular Interrupción I/O
+                </button>
+            </div>
+
+            <!-- Diagrama de Gantt -->
+            <div class="gantt-wrapper">
+                <h3>Diagrama de Gantt</h3>
+                <div class="gantt-chart" id="gantt-chart"></div>
+            </div>
+
+            <!-- Tabla de métricas -->
+            <div style="margin-top:20px;">
+                <h3>Métricas de Procesos Terminados</h3>
+                <table class="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>PID</th>
+                            <th>Llegada</th>
+                            <th>Ráfaga</th>
+                            <th>Finalización</th>
+                            <th data-tooltip="Completion - Arrival">Turnaround</th>
+                            <th data-tooltip="Turnaround - Burst">Waiting</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metrics-tbody"></tbody>
+                </table>
+            </div>
+        </main>
+
+        <!-- ── PANEL DERECHO: Memoria ── -->
+        <aside class="panel memory-panel">
+            <h2>Módulo de Memoria</h2>
+
+            <div style="display:flex; justify-content:space-between;
+                align-items:center; margin-bottom:10px;">
+                <button id="btn-compare" class="btn"
+                    style="background:var(--accent); color:#222; font-size:0.8em;"
+                    data-tooltip="Compara page faults reales de todos los algoritmos">
+                    📊 Comparar Algoritmos
+                </button>
+                <span class="badge terminated" style="font-size:1em; padding:6px 12px;">
+                    Faults: <span id="page-faults">0</span>
+                </span>
+            </div>
+
+            <!-- Grid de marcos físicos -->
+            <div class="memory-grid" id="memory-grid"></div>
+
+            <!-- Tabla de páginas avanzada: Proceso / Página / Marco / Estado -->
+            <div class="page-table-container">
+                <table class="page-table">
+                    <thead>
+                        <tr>
+                            <th>Proceso</th>
+                            <th>Página</th>
+                            <th>Marco</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="page-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- Log de eventos -->
+            <div style="margin-top:10px;">
+                <h3>Eventos del Sistema</h3>
+                <ul id="event-log"></ul>
+            </div>
+        </aside>
+    </div><!-- /.dashboard -->
+
+    <!-- ================================================================
+         MODAL — Comparación de algoritmos de reemplazo
+    ================================================================ -->
+    <div class="modal-overlay" id="compare-modal">
+        <div class="modal-content">
+            <button class="close-modal" id="close-modal"
+                data-tooltip="Cerrar">✖</button>
+            <h2 style="color:var(--accent); text-align:center; margin-bottom:6px;">
+                Comparación de Page Faults
+            </h2>
+            <p style="text-align:center; color:#aaa; font-size:0.85em; margin-bottom:20px;">
+                Resultados reales ejecutando los mismos procesos bajo cada algoritmo.
+            </p>
+            <div class="chart-wrapper" id="compare-chart"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         SCRIPTS
+    ================================================================ -->
+    <script src="app.js"></script>
+
+    <script>
+    /* ================================================================
+       CONTROLADOR DE INTERFAZ (index.html)
+       Responsabilidades:
+         · Capturar eventos del usuario (botones, formularios, archivo)
+         · Llamar a OS_Simulator (app.js) con los parámetros correctos
+         · Recibir snapshots y actualizar el DOM en updateUI()
+         · Nunca contener lógica de simulación
+    ================================================================ */
+
+    'use strict';
+
+    // ── Referencias DOM ──────────────────────────────────────────────────
+    const els = {
+        clock:          document.getElementById('clock-display'),
+        readyQueue:     document.getElementById('ready-queue'),
+        waitQueue:      document.getElementById('waiting-queue'),
+        cpuCore:        document.getElementById('cpu-core'),
+        ganttChart:     document.getElementById('gantt-chart'),
+        memGrid:        document.getElementById('memory-grid'),
+        faultsCount:    document.getElementById('page-faults'),
+        pageTableBody:  document.getElementById('page-table-body'),
+        metricsBody:    document.getElementById('metrics-tbody'),
+        log:            document.getElementById('event-log'),
+        processList:    document.getElementById('process-list-ui'),
+        calcFrames:     document.getElementById('calculated-frames'),
+        btnStart:       document.getElementById('btn-start'),
+        btnIo:          document.getElementById('btn-io'),
+        arrows: {
+            ready: document.getElementById('arrow-ready'),
+            run:   document.getElementById('arrow-run'),
+            term:  document.getElementById('arrow-term'),
+            rr:    document.getElementById('path-rr'),
+            io:    document.getElementById('path-io'),
+        }
+    };
+
+    // ── Estado local de la UI ────────────────────────────────────────────
+    let isRunning           = false;
+    let addedCount          = 0;    // Contador auto-incrementable de PIDs
+    let lastGanttProcess    = null; // PID del último bloque en el Gantt
+    let currentGanttBlock   = null; // Elemento DOM del bloque activo
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+
+    /** Calcula y muestra los marcos resultantes de memoria/página */
+    function calcFrames() {
+        const mem   = parseInt(document.getElementById('mem-size').value)  || 64;
+        const psize = parseInt(document.getElementById('page-size').value) || 8;
+        const frames = Math.max(1, Math.floor(mem / psize));
+        els.calcFrames.innerText = frames;
+        return frames;
+    }
+
+    /** Inicializa la cuadrícula de marcos físicos */
+    function initMemoryGrid(numFrames) {
+        els.memGrid.innerHTML = '';
+        for (let i = 0; i < numFrames; i++) {
+            els.memGrid.innerHTML += `
+                <div class="frame" id="frame-${i}">
+                    <span class="frame-number">M${i}</span>
+                    <div class="frame-content">Libre</div>
+                </div>`;
+        }
+    }
+
+    /** Añade una entrada al log de eventos */
+    function appendLog(logs) {
+        if (!logs || logs.length === 0) return;
+        logs.forEach(log => {
+            const li = document.createElement('li');
+            li.className  = log.type || '';
+            li.innerText  = `[T=${OS_Simulator.scheduler ? OS_Simulator.scheduler.time : 0}] ${log.msg}`;
+            els.log.prepend(li);
+
+            // Pulso visual en la grid cuando hay page fault
+            if (log.event === 'fault') {
+                els.memGrid.classList.remove('page-fault-anim');
+                void els.memGrid.offsetWidth; // reflow
+                els.memGrid.classList.add('page-fault-anim');
+            }
+        });
+    }
+
+    /**
+     * Renderiza la cola de procesos con animación de ENTRADA (popIn)
+     * y de SALIDA (popOutAndCollapse) comparando el DOM actual con
+     * el nuevo estado para solo tocar lo que cambió.
+     *
+     * @param {HTMLElement} container  - El elemento .queue
+     * @param {Process[]}   processes  - Array de procesos a mostrar
+     */
+    function renderQueue(container, processes) {
+        const currentIds = new Set(
+            [...container.querySelectorAll('.process-block')]
+                .map(el => el.dataset.pid)
+        );
+        const newIds = new Set(processes.map(p => p.id));
+
+        // 1. Animar salida de los que ya no están
+        container.querySelectorAll('.process-block').forEach(el => {
+            if (!newIds.has(el.dataset.pid) && !el.classList.contains('process-exit')) {
+                el.classList.add('process-exit');
+                // Eliminar el nodo del DOM una vez termine la animación
+                el.addEventListener('animationend', () => el.remove(), { once: true });
+            }
+        });
+
+        // 2. Añadir los nuevos (popIn viene del CSS por defecto en .process-block)
+        processes.forEach(p => {
+            if (!currentIds.has(p.id)) {
+                const div = document.createElement('div');
+                div.className       = 'process-block';
+                div.dataset.pid     = p.id;
+                div.style.backgroundColor = p.color;
+                div.innerHTML = `
+                    <strong>${p.id}</strong>
+                    <span class="sub">Ráfaga: ${p.remainingTime}</span>
+                    <span class="sub">Prio: ${p.priority}</span>`;
+                container.appendChild(div);
+            } else {
+                // Actualizar ráfaga restante si ya existe
+                const existing = container.querySelector(`[data-pid="${p.id}"]`);
+                if (existing) {
+                    const subs = existing.querySelectorAll('.sub');
+                    if (subs[0]) subs[0].innerText = `Ráfaga: ${p.remainingTime}`;
+                }
+            }
+        });
+    }
+
+    /** Actualiza el diagrama de Gantt agrupando ticks consecutivos */
+    function renderGantt(time, cpuProcess) {
+        if (!cpuProcess) {
+            // Cuando la CPU está inactiva, cerrar el bloque anterior
+            lastGanttProcess  = null;
+            currentGanttBlock = null;
+            return;
+        }
+
+        if (lastGanttProcess !== cpuProcess.id) {
+            // Nuevo proceso: crear bloque
+            currentGanttBlock = document.createElement('div');
+            currentGanttBlock.className           = 'gantt-block';
+            currentGanttBlock.style.backgroundColor = cpuProcess.color;
+            currentGanttBlock.dataset.pid           = cpuProcess.id;
+            currentGanttBlock.dataset.width         = '1';
+            // Etiqueta con el tiempo de inicio embebida dentro del bloque
+            currentGanttBlock.innerHTML = `
+                <strong>${cpuProcess.id}</strong>
+                <div class="tick-label">${time}</div>`;
+            els.ganttChart.appendChild(currentGanttBlock);
+            lastGanttProcess = cpuProcess.id;
+        } else {
+            // Mismo proceso: ampliar el bloque y actualizar la etiqueta de tiempo
+            const w = parseInt(currentGanttBlock.dataset.width) + 1;
+            currentGanttBlock.dataset.width     = String(w);
+            currentGanttBlock.style.flexGrow    = w;
+            // La etiqueta siempre muestra el tiempo FINAL del bloque
+            const label = currentGanttBlock.querySelector('.tick-label');
+            if (label) label.innerText = time;
+        }
+    }
+
+    /**
+     * Renderiza la tabla de páginas completa (Proceso / Página / Marco / Estado).
+     * Muestra TODAS las páginas lógicas de cada proceso activo, indicando
+     * si están en memoria (válidas) o en disco (swap).
+     */
+    function renderPageTable(framesArray) {
+        if (!OS_Simulator.scheduler) return;
+        els.pageTableBody.innerHTML = '';
+
+        // Recopilar todos los procesos que aún no terminaron
+        const activeProcs = [];
+        const s = OS_Simulator.scheduler;
+        if (s.currentProcess) activeProcs.push(s.currentProcess);
+        activeProcs.push(...s.readyQueue, ...s.waitQueue);
+
+        if (activeProcs.length === 0) return;
+
+        activeProcs.forEach(p => {
+            for (let i = 0; i < p.numPages; i++) {
+                const pageKey    = `${p.id}-P${i}`;
+                const frameIndex = framesArray.indexOf(pageKey);
+                const inMem      = frameIndex !== -1;
+
+                els.pageTableBody.innerHTML += `
+                    <tr>
+                        <td><strong style="color:${p.color}">${p.id}</strong></td>
+                        <td>P${i}</td>
+                        <td class="${inMem ? 'frame-id' : ''}">
+                            ${inMem ? 'Marco ' + frameIndex : '—'}
+                        </td>
+                        <td class="${inMem ? 'valid-bit' : 'invalid-bit'}">
+                            ${inMem ? '✓ Válida' : '✗ Swap'}
+                        </td>
+                    </tr>`;
+            }
+        });
+    }
+
+    /** Actualiza la tabla de métricas con los procesos terminados */
+    function renderMetrics(completedProcesses) {
+        els.metricsBody.innerHTML = '';
+        completedProcesses.forEach(p => {
+            els.metricsBody.innerHTML += `
+                <tr>
+                    <td style="color:${p.color}; font-weight:bold;">${p.id}</td>
+                    <td>${p.arrivalTime}</td>
+                    <td>${p.burstTime}</td>
+                    <td>${p.completionTime}</td>
+                    <td>${p.turnaroundTime}</td>
+                    <td>${p.waitingTime}</td>
+                </tr>`;
+        });
+    }
+
+    // ── Callback principal: recibe snapshot de app.js ────────────────────
+
+    function updateUI(snapshot) {
+        // ── Simulación terminada ─────────────────────────────────────────
+        if (snapshot.status === 'finished') {
+            isRunning = false;
+            els.btnStart.disabled  = false;
+            els.btnStart.innerText = '▶ Finalizado';
+            els.cpuCore.className  = 'cpu-core';
+            els.cpuCore.innerHTML  = '<span style="color:var(--state-running)">✓ Completado</span>';
+            els.btnIo.style.display = 'none';
+            appendLog(snapshot.logs);
+            return;
+        }
+
+        // ── Reset visual (llamado desde btn-reset sin datos de scheduler) ─
+        if (snapshot.status === 'reset') {
+            els.cpuCore.className = 'cpu-core';
+            els.cpuCore.innerHTML = 'Inactivo';
+            return;
+        }
+
+        // ── Tick normal ──────────────────────────────────────────────────
+
+        // 1. Reloj
+        els.clock.innerText = `Tick: ${snapshot.time}`;
+
+        // 2. Logs
+        appendLog(snapshot.logs);
+
+        // 3. CPU Core
+        if (snapshot.cpuProcess) {
+            els.cpuCore.className = 'cpu-core active';
+            els.cpuCore.style.borderColor  = snapshot.cpuProcess.color;
+            els.cpuCore.style.boxShadow    = `0 0 20px ${snapshot.cpuProcess.color}55`;
+            els.cpuCore.innerHTML = `
+                <span style="font-size:1.6em; color:#fff;">${snapshot.cpuProcess.id}</span>
+                <span style="font-size:0.65em; color:#ccc; margin-top:4px;">
+                    Restante: ${snapshot.cpuProcess.remainingTime} tick(s)
+                </span>`;
+            els.btnIo.style.display = 'block';
+            els.arrows.run.classList.add('active');
+        } else {
+            els.cpuCore.className = 'cpu-core';
+            els.cpuCore.style.borderColor = '#555';
+            els.cpuCore.style.boxShadow   = 'none';
+            els.cpuCore.innerHTML = '<span style="color:#666">Inactivo</span>';
+            els.btnIo.style.display = 'none';
+            els.arrows.run.classList.remove('active');
+        }
+
+        // 4. Flechas del diagrama de estados
+        els.arrows.ready.classList.toggle('active', snapshot.readyQueue.length > 0 || !!snapshot.cpuProcess);
+        els.arrows.term.classList.toggle('active',  snapshot.metrics.length > 0);
+
+        // Flecha de retorno Round Robin (se activa brevemente al detectar preempción)
+        const rrPreempt = snapshot.logs && snapshot.logs.some(l => l.event === 'rr-preempt');
+        if (rrPreempt) {
+            els.arrows.rr.classList.add('active');
+            setTimeout(() => els.arrows.rr.classList.remove('active'), 600);
+        }
+
+        // Flecha de retorno I/O (se activa brevemente al detectar retorno de I/O)
+        const ioReturn = snapshot.logs && snapshot.logs.some(l => l.event === 'io-return');
+        if (ioReturn) {
+            els.arrows.io.classList.add('active');
+            setTimeout(() => els.arrows.io.classList.remove('active'), 600);
+        }
+
+        // 5. Colas (con animación popIn/popOut)
+        renderQueue(els.readyQueue, snapshot.readyQueue);
+        renderQueue(els.waitQueue,  snapshot.waitQueue  || []);
+
+        // 6. Diagrama de Gantt
+        renderGantt(snapshot.time, snapshot.cpuProcess);
+
+        // 7. Memoria — animar solo los marcos que cambiaron de contenido
+        els.faultsCount.innerText = snapshot.pageFaults;
+        snapshot.frames.forEach((content, i) => {
+            const frameEl  = document.getElementById(`frame-${i}`);
+            if (!frameEl) return;
+            const contentDiv = frameEl.querySelector('.frame-content');
+            if (!contentDiv) return;
+
+            if (content) {
+                if (contentDiv.innerText !== content) {
+                    // Solo animar si el contenido cambió (reemplazo real)
+                    frameEl.classList.remove('frame-replace-anim');
+                    void frameEl.offsetWidth; // forzar reflow para reiniciar animación
+                    frameEl.classList.add('frame-replace-anim');
+                    frameEl.classList.add('occupied');
+                    contentDiv.innerText = content;
+                }
+            } else {
+                // Marco liberado (raro, pero posible en reset parcial)
+                frameEl.classList.remove('occupied', 'frame-replace-anim');
+                contentDiv.innerText = 'Libre';
+            }
+        });
+
+        // 8. Tabla de páginas
+        renderPageTable(snapshot.frames);
+
+        // 9. Métricas
+        renderMetrics(snapshot.metrics);
+    }
+
+    // ── Comparador de algoritmos (datos reales de app.js) ────────────────
+
+    document.getElementById('btn-compare').addEventListener('click', () => {
+        if (!OS_Simulator.scheduler || OS_Simulator.scheduler.processList.length === 0) {
+            alert('Añade al menos un proceso antes de comparar.'); return;
+        }
+
+        const numFrames = calcFrames();
+        const results   = OS_Simulator.runComparison(numFrames);
+        if (!results) return;
+
+        const chart   = document.getElementById('compare-chart');
+        chart.innerHTML = '';
+
+        // Colores individuales para las barras
+        const colors = {
+            FIFO:          '#ffb86c',
+            LRU:           '#8be9fd',
+            OPTIMAL:       '#50fa7b',
+            CLOCK:         '#bd93f9',
+            SECOND_CHANCE: '#f1fa8c'
+        };
+
+        const maxVal = Math.max(...Object.values(results), 1);
+
+        Object.entries(results).forEach(([algo, faults]) => {
+            const heightPct = Math.max(5, (faults / maxVal) * 100);
+            chart.innerHTML += `
+                <div class="bar-container">
+                    <div class="bar" style="height:${heightPct}%;
+                         background:${colors[algo] || 'var(--accent)'};">
+                        <div class="bar-value">${faults}</div>
+                    </div>
+                    <div class="bar-label">${algo.replace('_', ' ')}</div>
+                </div>`;
+        });
+
+        document.getElementById('compare-modal').classList.add('active');
+    });
+
+    document.getElementById('close-modal').addEventListener('click', () => {
+        document.getElementById('compare-modal').classList.remove('active');
+    });
+
+    // ── Formulario: Agregar proceso ──────────────────────────────────────
+
+    document.getElementById('btn-add-process').addEventListener('click', () => {
+        addedCount++;
+        const id     = document.getElementById('p-id').value.trim()         || `P${addedCount}`;
+        const arr    = parseInt(document.getElementById('p-arrival').value)  || 0;
+        const burst  = parseInt(document.getElementById('p-burst').value);
+        const prio   = parseInt(document.getElementById('p-priority').value) || 1;
+        const pages  = parseInt(document.getElementById('p-pages').value)    || 4;
+
+        if (!burst || burst < 1) {
+            alert('La Ráfaga debe ser un número positivo.'); return;
+        }
+
+        OS_Simulator.addProcess(id, arr, burst, prio, pages);
+
+        // Feedback visual en la lista de configuración
+        const li = document.createElement('li');
+        li.style.color    = 'var(--state-new)';
+        li.style.padding  = '3px 0';
+        li.style.borderBottom = '1px solid #333';
+        li.innerText = `✦ ${id}  llegada:${arr}  ráfaga:${burst}  prio:${prio}  págs:${pages}`;
+        els.processList.prepend(li);
+
+        // Limpiar campos (excepto valores por defecto)
+        document.getElementById('p-id').value      = '';
+        document.getElementById('p-arrival').value = '';
+        document.getElementById('p-burst').value   = '';
+    });
+
+    // ── Carga desde archivo ──────────────────────────────────────────────
+
+    document.getElementById('file-upload').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        OS_Simulator.loadFromFile(file, (count, hwConfig) => {
+            // Informar en el log
+            const li = document.createElement('li');
+            li.style.color = 'var(--state-new)';
+            li.innerText   = `[Archivo] ${count} procesos cargados.`;
+            els.log.prepend(li);
+
+            // Si el archivo incluía configuración de hardware, actualizar campos UI
+            if (hwConfig && hwConfig.memSize) {
+                document.getElementById('mem-size').value  = hwConfig.memSize;
+            }
+            if (hwConfig && hwConfig.pageSize) {
+                document.getElementById('page-size').value = hwConfig.pageSize;
+            }
+            const framesFromFile = hwConfig && hwConfig.numFrames;
+            if (framesFromFile) {
+                els.calcFrames.innerText = framesFromFile;
+            } else {
+                calcFrames();
+            }
+
+            if (count > 0) {
+                addedCount += count;
+                // Mostrar los procesos añadidos en la lista
+                const s = OS_Simulator.scheduler || { _pendingProcesses: OS_Simulator._pendingProcesses };
+                const procs = OS_Simulator.scheduler
+                    ? OS_Simulator.scheduler.processList
+                    : OS_Simulator._pendingProcesses;
+                procs.slice(-count).forEach(p => {
+                    const li2 = document.createElement('li');
+                    li2.style.color = 'var(--state-new)';
+                    li2.style.padding = '3px 0';
+                    li2.style.borderBottom = '1px solid #333';
+                    li2.innerText = `✦ ${p.id}  llegada:${p.arrivalTime}  ráfaga:${p.burstTime}`;
+                    els.processList.prepend(li2);
+                });
+            }
+        });
+
+        // Limpiar el input para permitir recargar el mismo archivo
+        e.target.value = '';
+    });
+
+    // ── Botón Precargar Ejemplo ──────────────────────────────────────────
+
+    document.getElementById('btn-preload').addEventListener('click', () => {
+        // Configurar Round Robin con quantum 2
+        document.getElementById('cpu-algo').value  = 'RR';
+        document.getElementById('cpu-quantum').style.display = 'block';
+        document.getElementById('cpu-quantum').value = '2';
+        document.getElementById('mem-algo').value  = 'LRU';
+
+        // Añadir 4 procesos representativos
+        const examples = [
+            { id: 'Chrome',  arr: 0, burst: 8, prio: 1, pages: 6 },
+            { id: 'Spotify', arr: 1, burst: 4, prio: 2, pages: 4 },
+            { id: 'Word',    arr: 2, burst: 9, prio: 1, pages: 5 },
+            { id: 'System',  arr: 3, burst: 5, prio: 0, pages: 3 },
+        ];
+        examples.forEach(ex => {
+            addedCount++;
+            OS_Simulator.addProcess(ex.id, ex.arr, ex.burst, ex.prio, ex.pages);
+            const li = document.createElement('li');
+            li.style.color   = 'var(--state-new)';
+            li.style.padding = '3px 0';
+            li.style.borderBottom = '1px solid #333';
+            li.innerText = `✦ ${ex.id}  llegada:${ex.arr}  ráfaga:${ex.burst}`;
+            els.processList.prepend(li);
+        });
+
+        const li = document.createElement('li');
+        li.style.color = 'var(--state-running)';
+        li.innerText   = '[Sistema] Ejemplo precargado — pulsa ▶ Iniciar.';
+        els.log.prepend(li);
+
+        document.getElementById('btn-preload').disabled = true;
+    });
+
+    // ── Mostrar/Ocultar quantum según algoritmo CPU ──────────────────────
+
+    document.getElementById('cpu-algo').addEventListener('change', (e) => {
+        document.getElementById('cpu-quantum').style.display =
+            e.target.value === 'RR' ? 'block' : 'none';
+    });
+
+    // ── Recalcular marcos al cambiar hardware ────────────────────────────
+
+    document.getElementById('mem-size').addEventListener('input',  calcFrames);
+    document.getElementById('page-size').addEventListener('input', calcFrames);
+
+    // ── Botón INICIAR ────────────────────────────────────────────────────
+
+    document.getElementById('btn-start').addEventListener('click', () => {
+        // Si el scheduler no existe aún, inicializarlo
+        if (!OS_Simulator.scheduler) {
+            const frames = calcFrames();
+            OS_Simulator.init(
+                document.getElementById('cpu-algo').value,
+                document.getElementById('cpu-quantum').value,
+                document.getElementById('mem-algo').value,
+                frames
+            );
+            initMemoryGrid(frames);
+        }
+
+        if (!isRunning) {
+            // Validar que existan procesos
+            const totalProcs = OS_Simulator.scheduler.processList.length;
+            if (totalProcs === 0) {
+                alert('Añade al menos un proceso antes de iniciar.'); return;
+            }
+
+            isRunning = true;
+            els.btnStart.disabled  = true;
+            els.btnStart.innerText = '▶ En ejecución…';
+            OS_Simulator.start(updateUI);
+        }
+    });
+
+    // ── Botón PAUSAR ─────────────────────────────────────────────────────
+
+    document.getElementById('btn-pause').addEventListener('click', () => {
+        if (isRunning) {
+            OS_Simulator.pause();
+            isRunning = false;
+            els.btnStart.disabled  = false;
+            els.btnStart.innerText = '▶ Reanudar';
+        }
+    });
+
+    // ── Botón REINICIAR ──────────────────────────────────────────────────
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+        OS_Simulator.reset();
+        isRunning        = false;
+        addedCount       = 0;
+        lastGanttProcess = null;
+        currentGanttBlock = null;
+
+        // Restablecer UI
+        els.btnStart.disabled   = false;
+        els.btnStart.innerText  = '▶ Iniciar';
+        els.btnIo.style.display = 'none';
+        els.clock.innerText     = 'Tick: 0';
+        els.faultsCount.innerText = '0';
+        els.readyQueue.innerHTML  = '';
+        els.waitQueue.innerHTML   = '';
+        els.ganttChart.innerHTML  = '';
+        els.log.innerHTML         = '';
+        els.metricsBody.innerHTML = '';
+        els.pageTableBody.innerHTML = '';
+        els.processList.innerHTML   = '';
+        els.memGrid.innerHTML       = '';
+        document.getElementById('btn-preload').disabled = false;
+        document.getElementById('mem-size').value  = '64';
+        document.getElementById('page-size').value = '8';
+        calcFrames();
+
+        // Restablecer flechas del diagrama
+        Object.values(els.arrows).forEach(a => {
+            if (a) a.classList.remove('active');
+        });
+
+        updateUI({ status: 'reset', cpuProcess: null, readyQueue: [],
+                   waitQueue: [], frames: [], metrics: [], logs: [] });
+    });
+
+    // ── Botón I/O ────────────────────────────────────────────────────────
+
+    document.getElementById('btn-io').addEventListener('click', () => {
+        if (OS_Simulator.scheduler && OS_Simulator.scheduler.currentProcess) {
+            OS_Simulator.scheduler.interruptForIO(
+                OS_Simulator.scheduler.currentProcess
+            );
+            // Forzar actualización visual inmediata sin esperar el siguiente tick
+            if (OS_Simulator.scheduler) {
+                updateUI({
+                    status:     'running',
+                    time:       OS_Simulator.scheduler.time,
+                    cpuProcess: null, // ya fue movido a waitQueue
+                    readyQueue: [...OS_Simulator.scheduler.readyQueue],
+                    waitQueue:  [...OS_Simulator.scheduler.waitQueue],
+                    frames:     [...OS_Simulator.memoryManager.frames],
+                    pageFaults: OS_Simulator.memoryManager.pageFaults,
+                    metrics:    [...OS_Simulator.scheduler.completedProcesses],
+                    logs: [{ type: 'warning',
+                             msg: `Proceso enviado a WAITING (I/O)` }]
+                });
+            }
+        }
+    });
+
+    // ── Slider de velocidad ──────────────────────────────────────────────
+
+    document.getElementById('speed-slider').addEventListener('input', (e) => {
+        OS_Simulator.setSpeed(parseInt(e.target.value));
+        // setSpeed() pausa el intervalo; si estaba corriendo, relanzar
+        if (isRunning) {
+            OS_Simulator.start(updateUI);
+        }
+    });
+
+    // ── Inicialización visual ────────────────────────────────────────────
+    calcFrames();
+    initMemoryGrid(calcFrames());
+
+    </script>
+</body>
+</html>
