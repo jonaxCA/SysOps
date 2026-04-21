@@ -7,7 +7,26 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
+    
+<!-- NAVBAR GLOBAL -->
+<nav class="navbar">
+    <div class="nav-container">
+        <span class="nav-logo">🧠 Simulador OS</span>
+        <ul class="nav-links">
+            <li>
+                <a href="/Modulo2/index.html" class="nav-link" id="link-mod2">
+                    Módulo 2 (CPU)
+                </a>
+            </li>
+            <li>
+                <a href="/Modulo3/modulo3.html" class="nav-link" id="link-mod3">
+                    Módulo 3 (Memoria)
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+    
     <!-- ================================================================
          HEADER GLOBAL — Controles de simulación
     ================================================================ -->
@@ -887,6 +906,16 @@
     // ── Inicialización visual ────────────────────────────────────────────
     calcFrames();
     initMemoryGrid(calcFrames());
+
+        const path = window.location.pathname;
+
+    if (path.includes("Modulo2")) {
+        document.getElementById("link-mod2")?.classList.add("active");
+    }
+
+    if (path.includes("Modulo3")) {
+        document.getElementById("link-mod3")?.classList.add("active");
+    }
 
     </script>
 </body>
