@@ -247,3 +247,17 @@
          SCRIPTS
     ================================================================ -->
     <script src="script-modulo2.js""></script>
+
+    <script>
+    const path = window.location.pathname;
+
+    if (path.includes("Modulo2")) {
+        document.getElementById("link-mod2")?.classList.add("active");
+    }
+
+    if (path.includes("Modulo3")) {
+        document.getElementById("link-mod3")?.classList.add("active");
+    }
+</script>
+</body>
+</html>
