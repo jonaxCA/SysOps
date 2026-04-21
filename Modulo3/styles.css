@@ -492,3 +492,48 @@ input[type="file"] { display: none; }
     from { opacity: 0; transform: translateY(-20px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* ================= NAVBAR ================= */
+.navbar {
+    background: #1e1f29;
+    border-bottom: 1px solid #333;
+    padding: 10px 20px;
+}
+
+.nav-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-logo {
+    color: #50fa7b;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 20px;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #ccc;
+    font-size: 0.95em;
+    padding: 6px 10px;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.nav-link:hover {
+    background: #44475a;
+    color: #fff;
+}
+
+.nav-link.active {
+    background: #50fa7b;
+    color: #222;
+    font-weight: bold;
+}
