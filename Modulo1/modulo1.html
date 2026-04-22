@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OS Process Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../Modulo3/styles.css"/>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <span class="nav-logo">🧠 Simulador OS</span>
+        <ul class="nav-links">
+            <li>
+                <a href="../Modulo1/modulo1.html" class="nav-link" id="link-mod3">
+                    Módulo 1 (Procesos)
+                </a>
+            </li>
+            <li>
+                <a href="../Modulo2/modulo2.html" class="nav-link" id="link-mod2">
+                    Módulo 2 (CPU)
+                </a>
+            </li>
+            <li>
+                <a href="../Modulo3/modulo3.html" class="nav-link" id="link-mod3">
+                    Módulo 3 (Memoria)
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+  <div class="scanline"></div>
+  <div class="noise"></div>
+
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-bracket">[</span>
+        <span class="logo-text">OS<span class="accent">SIM</span></span>
+        <span class="logo-bracket">]</span>
+      </div>
+      <div class="header-meta">
+        <span class="tag">Process State Simulator</span>
+        <span class="version">v2.0.1</span>
+      </div>
+      <div class="clock" id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ── PANEL IZQUIERDO: Formulario ── -->
+    <section class="panel panel-form">
+      <div class="panel-header">
+        <span class="panel-title">// ADD PROCESS</span>
+        <div class="panel-led"></div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="pid">PID</label>
+          <input type="number" id="pid" placeholder="e.g. 101" min="1"/>
+        </div>
+        <div class="field">
+          <label for="arrival">Arrival Time</label>
+          <input type="number" id="arrival" placeholder="0" min="0"/>
+        </div>
+        <div class="field">
+          <label for="burst">Burst Time</label>
+          <input type="number" id="burst" placeholder="5" min="1"/>
+        </div>
+        <div class="field">
+          <label for="priority">Priority</label>
+          <input type="number" id="priority" placeholder="1" min="1" max="10"/>
+        </div>
+        <div class="field">
+          <label for="pages">Num. Páginas</label>
+          <input type="number" id="pages" placeholder="4" min="1"/>
+        </div>
+        <div class="field field-full">
+          <label for="init-state">Estado Inicial</label>
+          <select id="init-state">
+            <option value="new">NEW</option>
+            <option value="ready">READY</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-add" id="btn-add">
+        <span class="btn-icon">+</span> CREAR PROCESO
+      </button>
+
+      <div class="divider"></div>
+
+      <div class="panel-header" style="margin-top:8px">
+        <span class="panel-title">// CONTROL</span>
+      </div>
+      <div class="controls">
+        <button class="btn-ctrl btn-run" id="btn-run" title="Ejecutar siguiente paso">▶ STEP</button>
+        <button class="btn-ctrl btn-auto" id="btn-auto" title="Auto step">⟳ AUTO</button>
+        <button class="btn-ctrl btn-reset" id="btn-reset" title="Resetear">✕ RESET</button>
+      </div>
+
+      <div class="speed-row">
+        <label>Velocidad Auto:</label>
+        <input type="range" id="speed" min="200" max="2000" value="800" step="100"/>
+        <span id="speed-label">0.8s</span>
+      </div>
+
+      <div class="divider"></div>
+      <div class="log-box" id="log-box">
+        <div class="log-line log-info">» Sistema iniciado. Agrega procesos para comenzar.</div>
+      </div>
+    </section>
+
+    <!-- ── PANEL CENTRAL: Diagrama de estados ── -->
+    <section class="panel panel-diagram">
+      <div class="panel-header">
+        <span class="panel-title">// STATE DIAGRAM</span>
+        <div class="panel-led led-green"></div>
+      </div>
+
+      <div class="diagram-wrap">
+        <svg id="diagram-svg" viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#00f5d4"/>
+            </marker>
+            <marker id="arrow-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+              <polygon points="0 0, 10 3.5, 0 7" fill="#ff4d6d"/>
+            </marker>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-strong">
+              <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+
+          <!-- Flechas de transición -->
+          <!-- new → ready -->
+          <path d="M 155 130 L 250 130" stroke="#00f5d4" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="4,2"/>
+          <text x="200" y="122" class="svg-label">admit</text>
+
+          <!-- ready → running -->
+          <path d="M 390 130 L 470 130" stroke="#00f5d4" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="4,2"/>
+          <text x="415" y="122" class="svg-label">dispatch</text>
+
+          <!-- running → ready (preempt) -->
+          <path d="M 520 105 C 520 60, 340 60, 340 105" stroke="#f7b731" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="4,2"/>
+          <text x="415" y="58" class="svg-label" fill="#f7b731">preempt</text>
+
+          <!-- running → waiting -->
+          <path d="M 550 165 C 590 220, 590 280, 550 310" stroke="#a29bfe" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="4,2"/>
+          <text x="600" y="250" class="svg-label" fill="#a29bfe">I/O req</text>
+
+          <!-- waiting → ready -->
+          <path d="M 420 320 C 350 380, 260 380, 260 175" stroke="#00f5d4" stroke-width="1.5" fill="none" marker-end="url(#arrow)" stroke-dasharray="4,2"/>
+          <text x="285" y="390" class="svg-label">I/O done</text>
+
+          <!-- running → terminated -->
+          <path d="M 520 155 L 520 245" stroke="#ff4d6d" stroke-width="1.5" fill="none" marker-end="url(#arrow-red)" stroke-dasharray="4,2"/>
+          <text x="530" y="210" class="svg-label" fill="#ff4d6d">exit</text>
+
+          <!-- Nodos de estado -->
+          <!-- NEW -->
+          <g class="state-node" id="node-new" data-state="new">
+            <ellipse cx="90" cy="130" rx="65" ry="35" class="node-ellipse state-new"/>
+            <text x="90" y="125" class="node-label">NEW</text>
+            <text x="90" y="143" class="node-count" id="count-new">0 proc</text>
+          </g>
+
+          <!-- READY -->
+          <g class="state-node" id="node-ready" data-state="ready">
+            <ellipse cx="320" cy="130" rx="65" ry="35" class="node-ellipse state-ready"/>
+            <text x="320" y="125" class="node-label">READY</text>
+            <text x="320" y="143" class="node-count" id="count-ready">0 proc</text>
+          </g>
+
+          <!-- RUNNING -->
+          <g class="state-node" id="node-running" data-state="running">
+            <ellipse cx="520" cy="130" rx="65" ry="35" class="node-ellipse state-running"/>
+            <text x="520" y="125" class="node-label">RUNNING</text>
+            <text x="520" y="143" class="node-count" id="count-running">0 proc</text>
+          </g>
+
+          <!-- WAITING -->
+          <g class="state-node" id="node-waiting" data-state="waiting">
+            <ellipse cx="480" cy="320" rx="65" ry="35" class="node-ellipse state-waiting"/>
+            <text x="480" y="315" class="node-label">WAITING</text>
+            <text x="480" y="333" class="node-count" id="count-waiting">0 proc</text>
+          </g>
+
+          <!-- TERMINATED -->
+          <g class="state-node" id="node-terminated" data-state="terminated">
+            <ellipse cx="520" cy="290" rx="65" ry="35" class="node-ellipse state-terminated"/>
+            <text x="520" y="285" class="node-label">TERMINATED</text>
+            <text x="520" y="303" class="node-count" id="count-terminated">0 proc</text>
+          </g>
+
+        </svg>
+      </div>
+
+      <!-- Leyenda de estados -->
+      <div class="legend">
+        <span class="legend-item"><span class="dot dot-new"></span>New</span>
+        <span class="legend-item"><span class="dot dot-ready"></span>Ready</span>
+        <span class="legend-item"><span class="dot dot-running"></span>Running</span>
+        <span class="legend-item"><span class="dot dot-waiting"></span>Waiting</span>
+        <span class="legend-item"><span class="dot dot-terminated"></span>Terminated</span>
+      </div>
+    </section>
+
+    <!-- ── PANEL DERECHO: Tabla de procesos ── -->
+    <section class="panel panel-table">
+      <div class="panel-header">
+        <span class="panel-title">// PROCESS TABLE</span>
+        <span class="proc-counter" id="proc-counter">0 processes</span>
+      </div>
+
+      <div class="table-wrap">
+        <table id="proc-table">
+          <thead>
+            <tr>
+              <th>PID</th>
+              <th>ARR</th>
+              <th>BST</th>
+              <th>PRI</th>
+              <th>PGS</th>
+              <th>STATE</th>
+              <th>ACT</th>
+            </tr>
+          </thead>
+          <tbody id="proc-tbody">
+            <tr class="empty-row">
+              <td colspan="7">No hay procesos. Agrega uno →</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="divider" style="margin-top:16px"></div>
+
+      <!-- Stats rápidas -->
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-val" id="stat-total">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-running">0</div>
+          <div class="stat-label">Running</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-done">0</div>
+          <div class="stat-label">Done</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-waiting">0</div>
+          <div class="stat-label">Waiting</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
