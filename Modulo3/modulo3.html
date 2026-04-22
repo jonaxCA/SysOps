@@ -914,6 +914,10 @@
 
         const path = window.location.pathname;
 
+    if (path.includes("Modulo1")) {
+        document.getElementById("link-mod1")?.classList.add("active");
+    }
+        
     if (path.includes("Modulo2")) {
         document.getElementById("link-mod2")?.classList.add("active");
     }
