@@ -14,7 +14,7 @@
         <span class="nav-logo">🧠 Simulador OS</span>
         <ul class="nav-links">
             <li>
-                <a href="../Modulo1/modulo1.html" class="nav-link" id="link-mod3">
+                <a href="../Modulo1/modulo1.html" class="nav-link" id="link-mod1">
                     Módulo 1 (Procesos)
                 </a>
             </li>
@@ -269,5 +269,21 @@
   </main>
 
   <script src="app.js"></script>
+
+      <script>
+    const path = window.location.pathname;
+
+    if (path.includes("Modulo1")) {
+        document.getElementById("link-mod1")?.classList.add("active");
+    }
+        
+    if (path.includes("Modulo2")) {
+        document.getElementById("link-mod2")?.classList.add("active");
+    }
+
+    if (path.includes("Modulo3")) {
+        document.getElementById("link-mod3")?.classList.add("active");
+    }
+</script>
 </body>
 </html>
