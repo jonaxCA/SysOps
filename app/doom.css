@@ -1,0 +1,305 @@
+/* ============== DOOM Skin (canvas pixel-art version) ==============
+ * Estética inspirada en shooters retro de los 90s. Sprites custom,
+ * sin assets de terceros. La lógica del simulador es independiente —
+ * esto es solo presentación.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* ---------- Body in Doom mode ---------- */
+body.doom-mode {
+  background: #060608;
+}
+body.doom-mode .app-header {
+  background: linear-gradient(180deg, #0a0a0f, #060608);
+  border-bottom: 2px solid #ff4400;
+  box-shadow: 0 0 14px rgba(255,68,0,0.25);
+}
+body.doom-mode .brand h1 {
+  font-family: 'Press Start 2P', monospace; font-size: 12px;
+  color: #ff4400; text-shadow: 0 0 12px rgba(255,68,0,0.6), 2px 2px 0 #000;
+  letter-spacing: 3px;
+}
+body.doom-mode .brand small { color: #ffaa00; font-family: monospace; }
+body.doom-mode .tab {
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  letter-spacing: 1px; color: #555;
+}
+body.doom-mode .tab:hover { color: #ffaa00; background: rgba(255,68,0,0.06); }
+body.doom-mode .tab.active {
+  background: #ff4400; color: #000;
+  text-shadow: none;
+}
+body.doom-mode .clock-pill {
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  background: #1a1a22; color: #ffaa00; border: 1px solid #ff4400;
+}
+body.doom-mode .panel {
+  background: #0d0d12; border: 1px solid #1a1a26; color: #aaa;
+  box-shadow: 0 0 0 1px #000 inset;
+}
+body.doom-mode .panel h2 {
+  font-family: 'Press Start 2P', monospace; font-size: 10px;
+  color: #ff8800; letter-spacing: 1px; text-shadow: 0 0 6px rgba(255,136,0,0.4);
+}
+body.doom-mode .panel h3 { color: #ffaa00; }
+body.doom-mode label, body.doom-mode .hint { color: #777; }
+body.doom-mode input, body.doom-mode select {
+  background: #06060a; color: #ffaa00; border: 1px solid #2a2a3a;
+}
+body.doom-mode input:focus, body.doom-mode select:focus {
+  outline-color: #ff4400;
+}
+body.doom-mode table.data th { background: #11111a; color: #ff8800; }
+body.doom-mode table.data td { color: #aaa; border-color: #1a1a22; }
+body.doom-mode button:not(.primary):not(.doom-toggle) {
+  background: #11111a; color: #aaa; border-color: #2a2a3a;
+}
+body.doom-mode button.primary {
+  background: #6b0000; color: #ffaa00; border: 1px solid #cc2200;
+  text-transform: uppercase; letter-spacing: 1px;
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+}
+body.doom-mode button.primary:hover {
+  background: #880000; box-shadow: 0 0 12px rgba(255,68,0,0.4);
+}
+body.doom-mode .toast { background: #11111a; color: #aaa; }
+
+/* Scanline overlay (CRT vibe) */
+body.doom-mode::after {
+  content: ''; position: fixed; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 3px);
+  z-index: 8500; mix-blend-mode: multiply;
+}
+/* Subtle vignette */
+body.doom-mode::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    transparent 60%, rgba(0,0,0,0.7) 100%);
+  z-index: 8499;
+}
+
+/* Make room at the bottom of the page when HUD is on */
+body.doom-mode .tab-content { padding-bottom: 90px; }
+
+/* Hide Gantt + ready queue inside the live panel when Doom mode is on
+   (the arena needs all the vertical space). The Gantt still renders
+   in the intermission overlay at the end. */
+body.doom-mode .hide-in-doom { display: none !important; }
+body:not(.doom-mode) .doom-gantt-hint { display: none; }
+.doom-gantt-hint {
+  text-align: center; padding: 14px 10px; margin-top: 6px;
+  color: #555; font-family: 'Press Start 2P', monospace;
+  font-size: 9px; letter-spacing: 1px;
+  border-top: 1px dashed #1a1a26; line-height: 1.6;
+}
+
+/* Make sure the arena grid scrolls inside its panel if too many cores. */
+body.doom-mode .doom-arena-grid {
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+}
+
+/* ---------- HUD permanent bar (only in Doom mode) ---------- */
+.doom-hud {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: 90px 1.1fr 1.1fr 1.4fr 1fr 1.6fr;
+  gap: 1px; padding: 0;
+  background: #0a0a0f;
+  border-top: 2px solid #ff4400;
+  font-family: 'Press Start 2P', monospace;
+  color: #ffaa00;
+  z-index: 9000;
+  box-shadow: 0 -2px 14px rgba(255,68,0,0.3);
+  height: 80px;
+}
+.doom-hud .hud-cell {
+  background: #0d0d12; padding: 8px 12px;
+  display: flex; flex-direction: column; gap: 3px;
+  justify-content: center;
+}
+.doom-hud .hud-label {
+  color: #555; font-size: 7px; letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.doom-hud .hud-value {
+  font-size: 18px; line-height: 1; color: #ffaa00;
+  text-shadow: 0 0 8px rgba(255,170,0,0.5);
+  letter-spacing: -0.5px;
+}
+.doom-hud .hud-value.danger {
+  color: #ff3333; text-shadow: 0 0 8px rgba(255,51,51,0.6);
+  animation: hud-blink 0.6s steps(2) infinite;
+}
+.doom-hud .hud-value.warn { color: #ff8800; text-shadow: 0 0 8px rgba(255,136,0,0.5); }
+.doom-hud .hud-value.ok   { color: #66ff33; text-shadow: 0 0 8px rgba(102,255,51,0.5); }
+.doom-hud .hud-value.lvl  { font-size: 12px; }
+.doom-hud .hud-meta { color: #444; font-size: 7px; letter-spacing: 1px; }
+@keyframes hud-blink { 50% { opacity: 0.4; } }
+
+/* Health/armor mini-bars */
+.hud-bar-mini {
+  height: 5px; background: #06060a; border: 1px solid #000;
+  position: relative; overflow: hidden;
+}
+.hud-bar-mini > span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #00aa00, #66ff33);
+  transition: width 0.3s ease;
+  box-shadow: 0 0 6px rgba(102,255,51,0.5);
+}
+.hud-bar-mini.armor > span {
+  background: linear-gradient(90deg, #4a90d9, #87ceeb);
+  box-shadow: 0 0 6px rgba(135,206,235,0.5);
+}
+.hud-bar-mini.danger > span {
+  background: linear-gradient(90deg, #aa0000, #ff3333);
+  box-shadow: 0 0 8px rgba(255,51,51,0.7);
+}
+
+/* Ammo bullets */
+.hud-ammo-bullets {
+  display: flex; flex-wrap: wrap; gap: 2px; align-items: flex-end;
+  max-height: 14px; overflow: hidden;
+}
+.hud-bullet {
+  width: 3px; height: 10px; background: #ffcc00;
+  box-shadow: inset 0 -2px 0 #aa7700, 0 0 0 1px #000, 0 0 4px rgba(255,204,0,0.4);
+}
+.hud-overflow { font-size: 8px; color: #888; margin-left: 4px; }
+
+/* Face cell with canvas */
+.hud-face-cell {
+  background: #06060a; border-right: 1px solid #1a1a22;
+  display: flex; align-items: center; justify-content: center;
+  padding: 6px;
+}
+#doom-face-canvas {
+  image-rendering: pixelated;
+  border: 2px solid #ff4400;
+  background: #111;
+  box-shadow: 0 0 10px rgba(255,68,0,0.4);
+}
+
+/* ---------- Toggle button in header ---------- */
+.doom-toggle {
+  background: #6b0000; color: #ffaa00; border: 2px solid #cc2200;
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  padding: 4px 10px; letter-spacing: 1px; cursor: pointer;
+  text-shadow: 1px 1px 0 #000;
+  transition: all 0.15s;
+}
+.doom-toggle:hover {
+  background: #880000;
+  box-shadow: 0 0 10px rgba(255,68,0,0.5);
+}
+.doom-toggle.active {
+  background: #ff4400; color: #000;
+  box-shadow: 0 0 14px rgba(255,68,0,0.7);
+}
+
+/* ---------- Arena (core = canvas room) ---------- */
+.doom-arena-grid {
+  display: grid; gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.arena-room {
+  background: #0d0d12; border: 1px solid #1a1a22;
+  display: flex; flex-direction: column;
+  height: 175px; overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 0 1px #000 inset;
+}
+.arena-header {
+  display: flex; justify-content: space-between;
+  padding: 4px 8px; background: #06060a;
+  border-bottom: 1px solid #1a1a22;
+  font-family: 'Press Start 2P', monospace; font-size: 7px;
+  letter-spacing: 1px;
+}
+.arena-id { color: #444; }
+.arena-state { transition: color 0.2s; }
+.arena-state.idle { color: #1c1c28; }
+.arena-state.busy { color: #ffaa00; text-shadow: 0 0 6px rgba(255,170,0,0.6); }
+.arena-state.kill { color: #ff4400; text-shadow: 0 0 6px rgba(255,68,0,0.7); }
+.arena-canvas {
+  flex: 1; width: 100%; display: block;
+  image-rendering: pixelated;
+  background: #06060a;
+}
+.arena-info {
+  padding: 3px 6px; background: #06060a;
+  font-family: 'Press Start 2P', monospace; font-size: 7px;
+  text-align: center; color: #555;
+  border-top: 1px solid #1a1a22;
+  letter-spacing: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ---------- Damage flash overlay (page faults) ---------- */
+#doom-damage-flash {
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    transparent 30%, rgba(255,0,0,0.45) 100%);
+  opacity: 0; transition: opacity 0.18s ease-out;
+  z-index: 8800;
+}
+
+/* ---------- Intermission "Level Complete" ---------- */
+#doom-intermission {
+  position: fixed; inset: 0; background: rgba(0,0,2,0.96);
+  display: none; align-items: center; justify-content: center;
+  z-index: 9500; padding: 24px;
+}
+.interm-box {
+  background: #0a0a0f; border: 2px solid #ff4400;
+  box-shadow: 0 0 50px rgba(255,68,0,0.5);
+  padding: 28px; max-width: 720px; width: 90%;
+  font-family: 'Press Start 2P', monospace; color: #ffaa00;
+  max-height: 90vh; overflow-y: auto;
+}
+.interm-title {
+  font-size: 28px; color: #ff3300; letter-spacing: 5px;
+  text-align: center; margin-bottom: 6px;
+  text-shadow: 0 0 22px rgba(255,51,0,0.6), 3px 3px 0 #000;
+}
+.interm-sub {
+  font-size: 9px; color: #555; letter-spacing: 3px;
+  text-align: center; margin-bottom: 18px;
+  text-transform: uppercase;
+}
+.interm-stats {
+  border: 1px solid #1a1a22; margin-bottom: 16px;
+}
+.interm-row {
+  display: flex; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid #11111a;
+  font-size: 10px;
+}
+.interm-row:last-child { border-bottom: none; }
+.interm-row span:first-child { color: #555; letter-spacing: 1px; }
+.interm-row .iv { color: #ffaa00; font-weight: bold; }
+.interm-gantt { margin-bottom: 16px; }
+.gantt-lbl {
+  font-size: 8px; color: #555; letter-spacing: 2px;
+  margin-bottom: 6px; text-transform: uppercase;
+}
+.gantt-wrap {
+  background: #06060a; border: 1px solid #1a1a22;
+  padding: 6px; overflow-x: auto;
+}
+.gantt-wrap svg { background: #0a0a0e; }
+.interm-close {
+  display: block; margin: 0 auto;
+  background: #6b0000; color: #ffaa00; border: 2px solid #cc2200;
+  font-family: 'Press Start 2P', monospace; font-size: 11px;
+  padding: 10px 22px; letter-spacing: 2px; cursor: pointer;
+  text-shadow: 1px 1px 0 #000;
+}
+.interm-close:hover {
+  background: #880000;
+  box-shadow: 0 0 14px rgba(255,68,0,0.6);
+}

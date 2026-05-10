@@ -145,6 +145,13 @@
     start() { if (!this.timer) this.timer = setInterval(() => this.tick(), this.tickMs); }
     pause() { if (this.timer) { clearInterval(this.timer); this.timer = null; } }
     isRunning() { return this.timer !== null; }
+    setTickMs(ms) {
+      this.tickMs = ms;
+      if (this.timer) {
+        clearInterval(this.timer);
+        this.timer = setInterval(() => this.tick(), ms);
+      }
+    }
 
     tick() {
       this.now++;

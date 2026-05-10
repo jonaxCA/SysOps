@@ -16,6 +16,8 @@ self.onmessage = (e) => {
   switch (msg.type) {
     case 'config':
       tickMs = msg.tickMs;
+      // If currently ticking, restart the timer so the new speed kicks in.
+      if (timer && current) { stopTicking(); startTicking(); }
       break;
     case 'run':
       current = {

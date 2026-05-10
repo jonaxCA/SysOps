@@ -1,7 +1,9 @@
 // Main entry — wires the UI to CorePool + Scheduler.
 
 (function () {
-  const TICK_MS = 250;
+  // Slider 1..5 → ms por tick (mayor = más lento, menor = más rápido).
+  const SPEED_MS = { 1: 600, 2: 400, 3: 250, 4: 150, 5: 80 };
+  let TICK_MS = 250;
 
   let pool = null;
   let scheduler = null;
@@ -182,14 +184,7 @@
 
   function renderState() {
     if (!scheduler) return;
-    const tbody = $('state-table');
-    tbody.innerHTML = '';
-    for (const p of scheduler.processes.values()) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${p.pid}</td><td class="state-${p.state}">${p.state}</td>
-                      <td>${p.remaining}</td><td>${p.burst}</td>`;
-      tbody.appendChild(tr);
-    }
+
     $('clock').textContent = scheduler.now;
     $('queue-ready').textContent =
       scheduler.ready.map(p => p.pid).join(', ') || '—';
@@ -205,14 +200,27 @@
     $('metric-speedup').textContent = m.speedup;
     renderPerCore(m.perCore);
 
-    const mt = $('metrics-table');
-    mt.innerHTML = '';
-    for (const r of m.rows) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${r.pid}</td><td>${r.arrival}</td><td>${r.burst}</td>
-                      <td>${r.completion}</td><td>${r.tat}</td>
-                      <td>${r.wait}</td><td>${r.response}</td>`;
-      mt.appendChild(tr);
+    // Fused state + per-process metrics into the single state-table
+    // (PID | Estado | Restante | Burst | AT | CT | TAT | WT | RT).
+    const metricsByPid = new Map(m.rows.map(r => [r.pid, r]));
+    const tbody = $('state-table');
+    if (tbody) {
+      tbody.innerHTML = '';
+      for (const p of scheduler.processes.values()) {
+        const r = metricsByPid.get(p.pid) || {};
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${p.pid}</td>
+          <td class="state-${p.state}">${p.state}</td>
+          <td>${p.remaining}</td>
+          <td>${p.burst}</td>
+          <td>${p.arrival}</td>
+          <td>${r.completion ?? '—'}</td>
+          <td>${r.tat ?? '—'}</td>
+          <td>${r.wait ?? '—'}</td>
+          <td>${r.response ?? '—'}</td>`;
+        tbody.appendChild(tr);
+      }
     }
   }
 
@@ -243,7 +251,30 @@
   function renderMemory() {
     const wrap = $('mem-frames');
     wrap.innerHTML = '';
-    if (!memory) return;
+
+    // Preview cuando no hay simulación: dibuja frames libres según config actual.
+    if (!memory) {
+      const memSize = parseInt($('in-mem-size').value, 10) || 64;
+      const pageSize = parseInt($('in-page-size').value, 10) || 4;
+      const numFrames = Math.max(1, Math.floor(memSize / pageSize));
+      for (let i = 0; i < numFrames; i++) {
+        const div = document.createElement('div');
+        div.className = 'frame frame-empty';
+        div.innerHTML = `<div class="frame-idx">F${i}</div>
+                         <div class="frame-empty-lbl">libre</div>`;
+        wrap.appendChild(div);
+      }
+      $('mem-algo').textContent = $('in-mem-algo').value;
+      $('mem-faults').textContent = '0';
+      $('mem-hits').textContent = '0';
+      $('mem-fault-rate').textContent = '0%';
+      $('mem-frag').textContent = '0';
+      $('mem-used').textContent = `0/${numFrames}`;
+      const ev = $('mem-last-event');
+      ev.textContent = '— Inicia una simulación para ver actividad de memoria —';
+      ev.className = 'mem-event';
+      return;
+    }
     const last = memory.lastEvent;
     memory.frames.forEach((f, idx) => {
       const div = document.createElement('div');
@@ -306,6 +337,109 @@
   function refresh() {
     renderCores(); renderGantt(); renderState();
     renderMemory(); renderPageTable(); lightStateDiagram();
+    refreshDoom();
+  }
+
+  // ----- Doom HUD + Arena snapshot -----
+  let doomLastTick = 0, doomCtxLast = 0, doomLastFaults = 0;
+  let doomIntermissionShown = false;
+
+  function pidColorIdx(pid) {
+    if (!pid) return 0;
+    let h = 0;
+    for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
+    return Math.abs(h) % 6;
+  }
+
+  function refreshDoom() {
+    if (!window.DoomHUD) return;
+    if (!scheduler) {
+      DoomHUD.renderEmpty();
+      if (window.DoomArena && DoomArena.isActive()) DoomArena.update([], 0);
+      doomLastFaults = 0; doomIntermissionShown = false;
+      return;
+    }
+    const m = scheduler.metrics();
+    const memSum = memory ? memory.summary() : { framesUsed: 0, framesTotal: 1, faultRate: 0, faults: 0 };
+    const memFree = memSum.framesTotal === 0 ? 100
+      : 100 * (1 - memSum.framesUsed / memSum.framesTotal);
+
+    // Detect new page faults since last refresh → marine takes damage.
+    if (window.DoomArena && DoomArena.isActive() && memSum.faults > doomLastFaults) {
+      DoomArena.reportPageFault();
+    }
+    doomLastFaults = memSum.faults;
+
+    // ctx switches per tick (rate)
+    const dt = Math.max(1, scheduler.now - doomLastTick);
+    const ctxRate = (m.contextSwitches - doomCtxLast) / dt;
+    doomLastTick = scheduler.now;
+    doomCtxLast = m.contextSwitches;
+
+    const cores = pool ? pool.cores.length : 0;
+    const allDone = scheduler.processes.size > 0 &&
+      [...scheduler.processes.values()].every(p => p.state === 'TERMINATED');
+
+    DoomHUD.render({
+      hasSim: true,
+      running: pool ? pool.cores.filter(c => c.busy).length : 0,
+      cpuUtil: parseFloat(m.cpuUtil),
+      memFree,
+      faultRate: parseFloat(memSum.faultRate),
+      ctxPerTick: ctxRate,
+      readyOver: scheduler.ready.length - cores,
+      ready: scheduler.ready.length,
+      kills: parseInt(m.completed),
+      total: m.total,
+      algo: scheduler.algorithm,
+      quantum: ['RR','MLQ','MLFQ'].includes(scheduler.algorithm) ? scheduler.quantum : null,
+      cores,
+      now: scheduler.now,
+      allDone
+    });
+
+    if (window.DoomArena && DoomArena.isActive() && pool) {
+      window.__poolCoresCount = pool.cores.length;
+      const coreData = pool.cores.map(c => {
+        const proc = c.pid ? scheduler.processes.get(c.pid) : null;
+        return {
+          id: c.id,
+          pid: c.pid,
+          remaining: proc ? proc.remaining : 0,
+          burst: proc ? proc.burst : 0,
+          queueLevel: proc ? (proc.queueLevel || 0) : 0,
+          color: pidColorIdx(c.pid)
+        };
+      });
+      DoomArena.update(coreData, scheduler.now);
+    }
+
+    // Intermission: solo cuando la sim TERMINA estando en Doom mode,
+    // con delay para que el último kill se aprecie. Si la sim terminó
+    // en modo normal, doomIntermissionShown se marca true igual para
+    // evitar que aparezca al activar Doom después.
+    if (allDone && !doomIntermissionShown) {
+      doomIntermissionShown = true;
+      if (window.DoomArena && DoomArena.isActive()) {
+        const stats = {
+          algo: scheduler.algorithm,
+          kills: parseInt(m.completed),
+          total: m.total,
+          time: scheduler.now,
+          avgTat: m.avgTat,
+          avgWait: m.avgWait,
+          cpuUtil: m.cpuUtil,
+          faults: memSum.faults,
+          ctx: m.contextSwitches
+        };
+        const ganttSvg = document.getElementById('gantt');
+        const ganttHTML = ganttSvg ? ganttSvg.outerHTML : '';
+        setTimeout(() => {
+          // Re-check: el usuario puede haber salido de Doom durante el delay.
+          if (DoomArena.isActive()) DoomArena.showIntermission(stats, ganttHTML);
+        }, 1500);
+      }
+    }
   }
 
   // ---------- Run controls ----------
@@ -344,6 +478,8 @@
     });
 
     if (pool) pool.destroy();
+    window.__poolCoresCount = numCores;
+    doomLastFaults = 0; doomLastTick = 0; doomCtxLast = 0; doomIntermissionShown = false;
     pool = new CorePool(numCores, TICK_MS, (msg) => {
       // Each worker 'tick' = one CPU step = one page reference.
       if (msg.type === 'tick' && memory) {
@@ -353,6 +489,9 @@
       scheduler.handleWorkerEvent(msg);
       refresh();
     });
+
+    // Expose for console debugging if needed.
+    window.__mem = memory; window.__sched = scheduler; window.__pool = pool;
 
     scheduler = new Scheduler({
       pool, algorithm: $('in-algo').value, quantum,
@@ -387,7 +526,13 @@
   function resetSim() {
     if (scheduler) scheduler.pause();
     if (pool) pool.destroy();
-    pool = null; scheduler = null;
+    pool = null; scheduler = null; memory = null;
+    doomLastFaults = 0; doomLastTick = 0; doomCtxLast = 0; doomIntermissionShown = false;
+    const interm = document.getElementById('doom-intermission');
+    if (interm) interm.style.display = 'none';
+    // Limpia las arenas Doom (evita cores fantasma de la sim previa).
+    window.__poolCoresCount = parseInt($('in-cores').value, 10) || 4;
+    if (window.DoomArena && DoomArena.isActive()) DoomArena.resetForNewSim();
     refresh();
     $('clock').textContent = '0';
   }
@@ -637,9 +782,22 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     UI.initTabs();
+    UI.initTooltips();
     UI.showTutorial(false);
     if ($('btn-tutorial')) $('btn-tutorial').onclick = () => UI.showTutorial(true);
     if ($('btn-show-tutorial')) $('btn-show-tutorial').onclick = () => UI.showTutorial(true);
+
+    // Doom mode toggle
+    if ($('btn-doom') && window.DoomArena) {
+      $('btn-doom').onclick = () => {
+        const next = !DoomArena.isActive();
+        DoomArena.setActive(next);
+        $('btn-doom').classList.toggle('active', next);
+        UI.toast(next ? '🔥 Doom mode: ON' : 'Doom mode: OFF', 'info', 1400);
+        refresh();
+      };
+    }
+    if (window.DoomHUD) DoomHUD.renderEmpty();
 
     $('btn-add').onclick = addProcessFromForm;
     $('btn-preload').onclick = preloadDemoToast;
@@ -660,13 +818,25 @@
     $('btn-resume').onclick = resumeSim;
     $('btn-reset').onclick = resetSim;
     $('in-algo').addEventListener('change', toggleQuantum);
-    $('in-mem-size').addEventListener('input', refreshFramesLabel);
-    $('in-page-size').addEventListener('input', refreshFramesLabel);
+    $('in-mem-size').addEventListener('input', () => { refreshFramesLabel(); refresh(); });
+    $('in-page-size').addEventListener('input', () => { refreshFramesLabel(); refresh(); });
+    $('in-mem-algo').addEventListener('change', refresh);
+
+    // Speed slider: cambia tickMs en vivo, sin reset.
+    if ($('speed-slider')) {
+      $('speed-slider').addEventListener('input', (e) => {
+        const lvl = parseInt(e.target.value, 10) || 3;
+        TICK_MS = SPEED_MS[lvl] || 250;
+        if (pool) pool.setTickMs(TICK_MS);
+        if (scheduler) scheduler.setTickMs(TICK_MS);
+      });
+    }
     $('in-file').addEventListener('change', (e) => {
       const f = e.target.files[0]; if (f) loadFromFile(f);
     });
     toggleQuantum();
     refreshFramesLabel();
     renderProcessList();
+    refresh(); // primer render: muestra frames preview en pestaña Memoria
   });
 })();

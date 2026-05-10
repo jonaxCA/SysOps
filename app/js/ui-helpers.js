@@ -137,8 +137,69 @@
     }
   }
 
+  // ---------- TOOLTIPS (global, position:fixed → escape overflow) ----------
+  let tipEl = null;
+  function ensureTip() {
+    if (tipEl) return;
+    tipEl = document.createElement('div');
+    tipEl.id = 'global-tooltip';
+    tipEl.style.cssText = [
+      'position:fixed', 'background:#1f2d3d', 'color:#fff',
+      'padding:6px 10px', 'border-radius:4px', 'font-size:11px',
+      'z-index:99999', 'pointer-events:none',
+      'box-shadow:0 2px 10px rgba(0,0,0,0.35)',
+      'opacity:0', 'transition:opacity 0.12s', 'display:none',
+      'line-height:1.4'
+    ].join(';');
+    document.body.appendChild(tipEl);
+  }
+  function showTip(target) {
+    ensureTip();
+    const txt = target.getAttribute('data-tip') || target.getAttribute('data-tip-wide');
+    if (!txt) return;
+    const wide = target.hasAttribute('data-tip-wide');
+    tipEl.textContent = txt;
+    tipEl.style.whiteSpace = wide ? 'normal' : 'nowrap';
+    tipEl.style.maxWidth = wide ? '280px' : 'none';
+    tipEl.style.display = 'block';
+    tipEl.style.opacity = '0';
+    // Layout pass
+    const r = target.getBoundingClientRect();
+    const tr = tipEl.getBoundingClientRect();
+    // Prefer above; flip below if not enough space.
+    let top = r.top - tr.height - 8;
+    if (top < 8) top = r.bottom + 8;
+    let left = r.left + r.width / 2 - tr.width / 2;
+    if (left < 8) left = 8;
+    if (left + tr.width > window.innerWidth - 8) left = window.innerWidth - tr.width - 8;
+    tipEl.style.top = top + 'px';
+    tipEl.style.left = left + 'px';
+    tipEl.style.opacity = '1';
+  }
+  function hideTip() {
+    if (!tipEl) return;
+    tipEl.style.opacity = '0';
+    setTimeout(() => {
+      if (tipEl && tipEl.style.opacity === '0') tipEl.style.display = 'none';
+    }, 150);
+  }
+  function initTooltips() {
+    document.addEventListener('mouseover', (e) => {
+      const t = e.target.closest && e.target.closest('[data-tip], [data-tip-wide]');
+      if (t) showTip(t);
+    });
+    document.addEventListener('mouseout', (e) => {
+      const t = e.target.closest && e.target.closest('[data-tip], [data-tip-wide]');
+      if (t) hideTip();
+    });
+    // Also hide on scroll/resize so the tip doesn't lag in stale position.
+    window.addEventListener('scroll', hideTip, true);
+    window.addEventListener('resize', hideTip);
+  }
+
   window.UI = {
     toast, initTabs, activateTab, showModal, showTutorial,
-    setFieldError, clearFieldErrors, setBtnReason, confetti
+    setFieldError, clearFieldErrors, setBtnReason, confetti,
+    initTooltips
   };
 })();

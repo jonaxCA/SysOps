@@ -42,6 +42,11 @@
 
     busyCores() { return this.cores.filter(c => c.busy); }
 
+    setTickMs(ms) {
+      this.tickMs = ms;
+      this.cores.forEach(c => c.worker.postMessage({ type: 'config', tickMs: ms }));
+    }
+
     assign(coreId, pid, burst, quantum) {
       const core = this.cores[coreId];
       core.busy = true;

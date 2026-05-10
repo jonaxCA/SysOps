@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>SysOps Simulator</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="doom.css">
 </head>
 <body>
 
@@ -25,7 +26,13 @@
     <button class="tab" data-tab="ayuda">❓ Ayuda</button>
   </nav>
   <div class="header-actions">
+    <label class="speed-control" data-tip-wide="Velocidad de simulación. Más a la derecha = más rápido. Funciona en vivo, sin reset.">
+      <span class="speed-icon">🐢</span>
+      <input type="range" min="1" max="5" value="3" id="speed-slider">
+      <span class="speed-icon">🐰</span>
+    </label>
     <span class="clock-pill" data-tip="Tiempo simulado actual">⏱ t = <strong id="clock">0</strong></span>
+    <button class="doom-toggle" id="btn-doom" data-tip-wide="Activa el modo Doom: HUD inferior estilo shooter retro y vista de cores como arenas. La lógica del simulador no cambia.">RIP &amp; TEAR</button>
     <button class="ghost" id="btn-tutorial" data-tip="Mostrar tutorial inicial">?</button>
   </div>
 </header>
@@ -167,11 +174,13 @@
         <button class="info-pill" data-tip-wide="Cada caja es un Web Worker corriendo en un thread real del SO. El PID que muestra es el proceso que ese core está ejecutando ahora.">ℹ</button>
       </div>
       <div id="cores" class="cores-grid"></div>
-      <h3 class="mt-2">Diagrama de Gantt (paralelo por core)</h3>
-      <div class="scroll-x">
+      <div id="doom-arena" class="doom-arena-grid" style="display:none"></div>
+      <h3 class="mt-2 hide-in-doom">Diagrama de Gantt (paralelo por core)</h3>
+      <div class="scroll-x hide-in-doom">
         <svg id="gantt" width="100%" height="160"></svg>
       </div>
-      <div class="row mt-1"><span>Ready:</span> <code id="queue-ready">—</code></div>
+      <div class="row mt-1 hide-in-doom"><span>Ready:</span> <code id="queue-ready">—</code></div>
+      <div class="doom-gantt-hint">📊 El Gantt completo aparece en el resumen al terminar la simulación.</div>
     </div>
 
     <!-- Métricas -->
@@ -367,8 +376,13 @@
 <div id="toast-root"></div>
 <div id="modal-root"></div>
 <div id="confetti-root"></div>
+<div id="doom-hud-root"></div>
+<div id="doom-damage-flash"></div>
+<div id="doom-intermission"></div>
 
 <script src="js/ui-helpers.js"></script>
+<script src="js/doom-hud.js"></script>
+<script src="js/doom-arena.js"></script>
 <script src="js/worker-source.js"></script>
 <script src="js/core-pool.js"></script>
 <script src="js/memory-manager.js"></script>

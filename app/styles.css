@@ -48,6 +48,12 @@ body {
   background: rgba(255,255,255,0.12); padding: 4px 12px;
   border-radius: 12px; font-size: 13px;
 }
+.speed-control {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 12px;
+}
+.speed-icon { font-size: 14px; opacity: 0.85; }
+.speed-control input[type=range] { width: 90px; accent-color: #16a085; }
 
 /* ============== Tab content ============== */
 .tab-content {
@@ -299,25 +305,8 @@ table.data.small { font-size: 11px; }
 .glossary dt { font-weight: 700; color: var(--primary-h); margin-top: 8px; }
 .glossary dd { margin: 2px 0 0 16px; font-size: 13px; color: var(--ink-soft); }
 
-/* ============== Tooltips (CSS-only) ============== */
-[data-tip], [data-tip-wide] { position: relative; }
-[data-tip]:hover::after, [data-tip-wide]:hover::after {
-  content: attr(data-tip);
-  position: absolute; bottom: calc(100% + 6px); left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink); color: #fff; padding: 6px 10px;
-  border-radius: 4px; font-size: 11px; white-space: nowrap;
-  z-index: 1000; pointer-events: none; box-shadow: var(--shadow);
-}
-[data-tip-wide]:hover::after {
-  content: attr(data-tip-wide);
-  white-space: normal; width: 240px; text-align: left; line-height: 1.4;
-}
-[data-tip]:hover::before, [data-tip-wide]:hover::before {
-  content: ''; position: absolute; bottom: calc(100% + 1px); left: 50%;
-  transform: translateX(-50%); border: 5px solid transparent;
-  border-top-color: var(--ink); z-index: 1000;
-}
+/* Tooltips ahora se manejan vía UI.initTooltips() en ui-helpers.js
+   con position:fixed para escapar contenedores con overflow. */
 
 /* ============== Toasts ============== */
 #toast-root {
