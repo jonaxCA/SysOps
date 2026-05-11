@@ -35,23 +35,30 @@ body.doom-mode .clock-pill {
   background: #1a1a22; color: #ffaa00; border: 1px solid #ff4400;
 }
 body.doom-mode .panel {
-  background: #0d0d12; border: 1px solid #1a1a26; color: #aaa;
+  background: #0d0d12; border: 1px solid #1a1a26; color: #e8e8e8;
   box-shadow: 0 0 0 1px #000 inset;
 }
 body.doom-mode .panel h2 {
   font-family: 'Press Start 2P', monospace; font-size: 10px;
   color: #ff8800; letter-spacing: 1px; text-shadow: 0 0 6px rgba(255,136,0,0.4);
 }
-body.doom-mode .panel h3 { color: #ffaa00; }
-body.doom-mode label, body.doom-mode .hint { color: #777; }
+body.doom-mode .panel h3 {
+  color: #ffaa00; text-shadow: 0 0 4px rgba(255,170,0,0.3);
+}
+body.doom-mode label { color: #ffcc44; }
+body.doom-mode .hint { color: #aaccff; }
 body.doom-mode input, body.doom-mode select {
-  background: #06060a; color: #ffaa00; border: 1px solid #2a2a3a;
+  background: #06060a; color: #ffdd55; border: 1px solid #2a2a3a;
+  font-weight: bold;
 }
 body.doom-mode input:focus, body.doom-mode select:focus {
   outline-color: #ff4400;
 }
-body.doom-mode table.data th { background: #11111a; color: #ff8800; }
-body.doom-mode table.data td { color: #aaa; border-color: #1a1a22; }
+body.doom-mode table.data th {
+  background: #1a0e08; color: #ffaa00; letter-spacing: 1px;
+  text-shadow: 1px 1px 0 #000;
+}
+body.doom-mode table.data td { color: #f0f0f0; border-color: #1a1a22; }
 body.doom-mode .ready-tokens {
   background: #06060a; border-color: #1a1a22;
 }
@@ -59,9 +66,12 @@ body.doom-mode .ready-token {
   font-family: 'Press Start 2P', monospace; font-size: 9px;
   border: 1px solid #000;
 }
-body.doom-mode .ready-empty { color: #555; }
+body.doom-mode .ready-empty { color: #888; }
 body.doom-mode button:not(.primary):not(.doom-toggle) {
-  background: #11111a; color: #aaa; border-color: #2a2a3a;
+  background: #11111a; color: #ddd; border-color: #2a2a3a;
+}
+body.doom-mode button:not(.primary):not(.doom-toggle):hover {
+  background: #1f1f2a; color: #ffaa00;
 }
 body.doom-mode button.primary {
   background: #6b0000; color: #ffaa00; border: 1px solid #cc2200;
@@ -71,7 +81,95 @@ body.doom-mode button.primary {
 body.doom-mode button.primary:hover {
   background: #880000; box-shadow: 0 0 12px rgba(255,68,0,0.4);
 }
-body.doom-mode .toast { background: #11111a; color: #aaa; }
+body.doom-mode .toast { background: #11111a; color: #f0f0f0; }
+
+/* Métricas: label amarillo, valor verde brillante */
+body.doom-mode .metrics li {
+  color: #ffcc44; border-color: #2a2a3a;
+}
+body.doom-mode .metrics li strong {
+  color: #66ff33; text-shadow: 0 0 6px rgba(102,255,51,0.4);
+}
+
+/* Per-core: card más legible */
+body.doom-mode .percore-card {
+  background: #11111a; border-color: #2a2a3a;
+}
+body.doom-mode .percore-head strong { color: #ffaa00; }
+body.doom-mode .percore-now { color: #66ff33; }
+body.doom-mode .percore-stats { color: #ccc; }
+body.doom-mode .percore-pct {
+  color: #fff; text-shadow: 1px 1px 0 #000;
+}
+body.doom-mode .percore-bar { background: #06060a; }
+
+/* Estados de proceso (en la tabla) */
+body.doom-mode .state-NEW        { color: #aaccff; }
+body.doom-mode .state-READY      { color: #66aaff; font-weight: bold; }
+body.doom-mode .state-RUNNING    { color: #66ff33; font-weight: bold;
+                                   text-shadow: 0 0 5px rgba(102,255,51,0.5); }
+body.doom-mode .state-WAITING    { color: #ffaa00; }
+body.doom-mode .state-TERMINATED { color: #ff4400; font-weight: bold; }
+
+/* Diagrama de estados */
+body.doom-mode .state-diagram { background: #06060a; border: 1px solid #1a1a22; }
+body.doom-mode .state-node {
+  background: #11111a; color: #aaa; border-color: #2a2a3a;
+}
+body.doom-mode .state-node.lit-NEW        { background: #2a2a3a; color: #fff; }
+body.doom-mode .state-node.lit-READY      { background: #2a4080; color: #fff;
+                                            border-color: #66aaff; }
+body.doom-mode .state-node.lit-RUNNING    { background: #1a6633; color: #fff;
+                                            border-color: #66ff33; }
+body.doom-mode .state-node.lit-TERMINATED { background: #6b0000; color: #fff;
+                                            border-color: #ff4400; }
+body.doom-mode .arrow { color: #ffaa00; }
+
+/* Limits collapsible */
+body.doom-mode .limits {
+  background: #0a0a0e; border-left-color: #4488ff; color: #ddd;
+}
+body.doom-mode .limits summary { color: #66aaff; }
+body.doom-mode .limits ul { color: #ccc; }
+body.doom-mode .limits code {
+  background: #1a1a22; color: #ffaa00; border: 1px solid #2a2a3a;
+}
+
+/* Hint del Gantt en doom */
+body.doom-mode .doom-gantt-hint {
+  color: #ffaa00; text-shadow: 0 0 4px rgba(255,170,0,0.3);
+}
+
+/* Info pill (ℹ) */
+body.doom-mode .info-pill {
+  background: #11111a; color: #66aaff; border-color: #2a2a3a;
+}
+body.doom-mode .info-pill:hover {
+  background: #66aaff; color: #000;
+}
+
+/* Memoria (panel principal) más legible */
+body.doom-mode .mem-stats { color: #ddd; }
+body.doom-mode .badge-warn {
+  background: #3a1a00; color: #ffaa00; font-weight: bold;
+}
+body.doom-mode .badge-ok {
+  background: #0a3320; color: #66ff33; font-weight: bold;
+}
+body.doom-mode .frame { background: #0a0a0e; border-color: #2a2a3a; }
+body.doom-mode .frame-empty { color: #666; }
+body.doom-mode .frame-page, body.doom-mode .frame-bit { color: #ddd; }
+body.doom-mode .mem-event {
+  background: #11111a; color: #ddd;
+}
+
+/* Code inline más legible */
+body.doom-mode code {
+  background: #1a1a22; color: #66ff33; border: 1px solid #2a2a3a;
+}
+
+/* Header brand subtitle */
+body.doom-mode .brand small { color: #ffcc44; }
 
 /* Scanline overlay (CRT vibe) */
 body.doom-mode::after {

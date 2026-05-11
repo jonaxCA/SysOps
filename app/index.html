@@ -52,8 +52,10 @@
         <label>Burst <input id="in-burst" type="number" value="5" min="1" data-tip="Unidades de CPU"></label>
         <label>Priority <input id="in-priority" type="number" value="1" min="0" data-tip="Menor número = mayor prioridad"></label>
         <label>Pages <input id="in-pages" type="number" value="2" min="0" data-tip="Páginas que ocupará"></label>
-        <label>Affinity <input id="in-affinity" placeholder="0,1" data-tip="Cores permitidos"></label>
-        <label>Queue <input id="in-queue" type="number" value="0" min="0" max="2" data-tip="Nivel MLQ/MLFQ"></label>
+        <label id="lbl-queue" style="display:none">
+          Queue <input id="in-queue" type="number" value="0" min="0" max="2"
+                       data-tip-wide="Nivel de cola para MLQ/MLFQ. 0=alta prioridad, 2=baja. Solo visible cuando el algoritmo seleccionado en Scheduling es MLQ o MLFQ.">
+        </label>
         <label data-tip-wide="Threads del proceso. Comparten memoria. T=3 → 3 ejecutables (P1.t0, P1.t1, P1.t2) corriendo en paralelo en cores distintos.">
           Threads <input id="in-threads" type="number" value="1" min="1" max="8"></label>
         <label data-tip-wide="Forks del proceso. Cada fork es una copia independiente con su propia memoria. F=2 → original + Pa + Pb.">
@@ -88,7 +90,7 @@
       <div class="scroll-y">
         <table class="data">
           <thead><tr><th>PID</th><th>AT</th><th>BT</th><th>Pri</th>
-                     <th>Pg</th><th>Aff</th><th>Q</th><th>T</th><th>F</th><th></th></tr></thead>
+                     <th>Pg</th><th class="col-queue">Q</th><th>T</th><th>F</th><th></th></tr></thead>
           <tbody id="process-list"></tbody>
         </table>
       </div>
@@ -339,8 +341,6 @@
         <dd>Tiempo máximo que un proceso puede correr antes de ser desalojado (RR, MLQ, MLFQ).</dd>
         <dt>Page Fault</dt>
         <dd>Acceso a una página que no está en memoria física. El reemplazo decide a quién sacar.</dd>
-        <dt>Affinity</dt>
-        <dd>Restricción de en qué cores puede correr un ejecutable.</dd>
         <dt>Speedup</dt>
         <dd>burst total / tiempo real. Mide la ganancia por paralelismo.</dd>
       </dl>

@@ -35,8 +35,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${p.pid}</td><td>${p.arrival}</td><td>${p.burst}</td>
                       <td>${p.priority}</td><td>${p.pages}</td>
-                      <td>${(p.affinity || []).join(',') || 'any'}</td>
-                      <td>${p.queueLevel ?? 0}</td>
+                      <td class="col-queue">${p.queueLevel ?? 0}</td>
                       <td>${p.threads ?? 1}</td>
                       <td>${p.forks ?? 0}</td>
                       <td><button data-pid="${p.pid}" class="del-proc danger" data-tip="Eliminar">×</button></td>`;
@@ -98,13 +97,11 @@
     const forks   = Math.max(0, Math.min(5, parseInt($('in-forks').value,   10) || 0));
     if (bad) return;
 
-    const affRaw = $('in-affinity').value.trim();
-    const affinity = affRaw ? affRaw.split(',').map(n => parseInt(n, 10)).filter(n => !isNaN(n)) : [];
     processList.push({
       pid, arrival, burst,
       priority:   parseInt($('in-priority').value, 10) || 0,
       pages:      Math.max(0, parseInt($('in-pages').value, 10) || 0),
-      affinity,
+      affinity:   [],
       queueLevel: Math.max(0, Math.min(2, parseInt($('in-queue').value, 10) || 0)),
       threads, forks
     });
@@ -119,7 +116,7 @@
       { pid:'P2', arrival:1, burst:4, priority:1, pages:2, affinity:[],     queueLevel:1, threads:3, forks:0 },
       { pid:'P3', arrival:2, burst:8, priority:3, pages:4, affinity:[],     queueLevel:2, threads:1, forks:2 },
       { pid:'P4', arrival:3, burst:3, priority:2, pages:2, affinity:[],     queueLevel:0, threads:1, forks:0 },
-      { pid:'P5', arrival:4, burst:5, priority:1, pages:3, affinity:[0,1],  queueLevel:1, threads:2, forks:0 },
+      { pid:'P5', arrival:4, burst:5, priority:1, pages:3, affinity:[],     queueLevel:1, threads:2, forks:0 },
       { pid:'P6', arrival:5, burst:7, priority:2, pages:4, affinity:[],     queueLevel:2, threads:1, forks:1 },
       { pid:'P7', arrival:6, burst:2, priority:1, pages:1, affinity:[],     queueLevel:0, threads:1, forks:0 },
       { pid:'P8', arrival:7, burst:4, priority:3, pages:2, affinity:[],     queueLevel:1, threads:1, forks:0 }
@@ -203,16 +200,9 @@
       UI.toast(`${processList.length} procesos declarados → ${executables.length} ejecutables`, 'info', 2500);
     }
 
-    // Heurísticas de aviso.
+    // Heurística de aviso.
     if ((algo === 'MLQ' || algo === 'MLFQ') && executables.every(p => (p.queueLevel || 0) === 0)) {
       UI.toast(`${algo} usa colas 0–2, pero todos están en cola 0. La diferencia será mínima.`, 'warn', 4500);
-    }
-    const usingAffinity = executables.some(p => p.affinity && p.affinity.length);
-    if (usingAffinity) {
-      const maxAff = Math.max(...executables.flatMap(p => p.affinity || [-1]));
-      if (maxAff >= numCores) {
-        UI.toast(`Affinity referencia core ${maxAff} pero solo hay ${numCores} cores. Esos procesos quedarán bloqueados.`, 'err', 5000);
-      }
     }
 
     // Limpiar sesión previa.
@@ -880,11 +870,16 @@
     $('lbl-frames').textContent = Math.max(1, Math.floor(m / p));
   }
 
-  function toggleQuantum() {
+  function updateAlgoUI() {
     const algo = $('in-algo').value;
     const needsQuantum = ['RR', 'MLQ', 'MLFQ'].includes(algo);
+    const needsQueue   = ['MLQ', 'MLFQ'].includes(algo);
     $('lbl-quantum').style.display = needsQuantum ? '' : 'none';
+    $('lbl-queue').style.display   = needsQueue   ? '' : 'none';
+    document.body.classList.toggle('show-queue', needsQueue);
   }
+  // Alias por compatibilidad con el wire-up antiguo si se llama.
+  const toggleQuantum = updateAlgoUI;
 
   // ============================================================
   // WIRE-UP
