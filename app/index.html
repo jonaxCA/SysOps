@@ -19,10 +19,9 @@
   </div>
   <nav class="tabs">
     <button class="tab active" data-tab="procesos">📋 Procesos</button>
-    <button class="tab" data-tab="sim">⚙️ Simulación</button>
-    <button class="tab" data-tab="memoria">💾 Memoria</button>
+    <button class="tab" data-tab="sched">⚙️ Scheduling</button>
+    <button class="tab" data-tab="paging">💾 Paginación</button>
     <button class="tab" data-tab="comparar">📊 Comparar</button>
-    <button class="tab" data-tab="fork">🍴 Fork Backend</button>
     <button class="tab" data-tab="ayuda">❓ Ayuda</button>
   </nav>
   <div class="header-actions">
@@ -31,8 +30,8 @@
       <input type="range" min="1" max="5" value="3" id="speed-slider">
       <span class="speed-icon">🐰</span>
     </label>
-    <span class="clock-pill" data-tip="Tiempo simulado actual">⏱ t = <strong id="clock">0</strong></span>
-    <button class="doom-toggle" id="btn-doom" data-tip-wide="Activa el modo Doom: HUD inferior estilo shooter retro y vista de cores como arenas. La lógica del simulador no cambia.">RIP &amp; TEAR</button>
+    <span class="clock-pill" data-tip="Tiempo simulado actual del scheduler">⏱ t = <strong id="clock">0</strong></span>
+    <button class="doom-toggle" id="btn-doom" data-tip-wide="Activa el modo Doom: HUD inferior estilo shooter retro y vista de cores como arenas. Solo afecta visualmente la pestaña Scheduling.">RIP &amp; TEAR</button>
     <button class="ghost" id="btn-tutorial" data-tip="Mostrar tutorial inicial">?</button>
   </div>
 </header>
@@ -45,16 +44,20 @@
     <div class="panel">
       <div class="panel-header">
         <h2>Capturar procesos</h2>
-        <button class="info-pill" data-tip-wide="Cada proceso tendrá: PID único, tiempo de llegada (arrival), duración (burst), prioridad (menor=más prioritaria), # de páginas y opcionalmente: cores donde puede correr (affinity) y nivel de cola (0–2 para MLQ/MLFQ).">ℹ</button>
+        <button class="info-pill" data-tip-wide="Cada proceso tiene PID único, arrival, burst, prioridad, # páginas, afinidad de cores y nivel de cola. Threads y Forks expanden el proceso al simular: 3 threads = 3 ejecutables que comparten memoria; 2 forks = 2 copias independientes (cada fork tiene su memoria propia).">ℹ</button>
       </div>
       <div class="form-grid">
-        <label>PID <input id="in-pid" placeholder="ej. P1" data-tip="Identificador único del proceso"></label>
-        <label>Arrival <input id="in-arrival" type="number" value="0" min="0" data-tip="Cuándo llega al sistema"></label>
-        <label>Burst <input id="in-burst" type="number" value="5" min="1" data-tip="Unidades de CPU que necesita"></label>
+        <label>PID <input id="in-pid" placeholder="ej. P1" data-tip="Identificador único"></label>
+        <label>Arrival <input id="in-arrival" type="number" value="0" min="0" data-tip="Tiempo de llegada"></label>
+        <label>Burst <input id="in-burst" type="number" value="5" min="1" data-tip="Unidades de CPU"></label>
         <label>Priority <input id="in-priority" type="number" value="1" min="0" data-tip="Menor número = mayor prioridad"></label>
-        <label>Pages <input id="in-pages" type="number" value="2" min="0" data-tip="Páginas de memoria que ocupará"></label>
-        <label>Affinity <input id="in-affinity" placeholder="0,1" data-tip="Cores permitidos separados por coma. Vacío = cualquier core."></label>
-        <label>Queue <input id="in-queue" type="number" value="0" min="0" max="2" data-tip="Nivel de cola (0=alta, 2=baja). Solo aplica a MLQ/MLFQ."></label>
+        <label>Pages <input id="in-pages" type="number" value="2" min="0" data-tip="Páginas que ocupará"></label>
+        <label>Affinity <input id="in-affinity" placeholder="0,1" data-tip="Cores permitidos"></label>
+        <label>Queue <input id="in-queue" type="number" value="0" min="0" max="2" data-tip="Nivel MLQ/MLFQ"></label>
+        <label data-tip-wide="Threads del proceso. Comparten memoria. T=3 → 3 ejecutables (P1.t0, P1.t1, P1.t2) corriendo en paralelo en cores distintos.">
+          Threads <input id="in-threads" type="number" value="1" min="1" max="8"></label>
+        <label data-tip-wide="Forks del proceso. Cada fork es una copia independiente con su propia memoria. F=2 → original + Pa + Pb.">
+          Forks <input id="in-forks" type="number" value="0" min="0" max="5"></label>
         <button id="btn-add" class="primary">➕ Agregar</button>
       </div>
       <div class="row mt-2">
@@ -62,7 +65,7 @@
         <button id="btn-scn-load" class="ghost">🔥 Alta carga (30)</button>
         <button id="btn-scn-conc" class="ghost">⚡ Alta concurrencia (20+8c)</button>
         <button id="btn-scn-clear" class="ghost danger">🗑 Limpiar</button>
-        <label class="file-label" data-tip="Archivo .txt con líneas: PID,Arrival,Burst,Priority,Pages[,Queue] y opcional Memoria=, PageSize=">
+        <label class="file-label" data-tip="Archivo .txt con líneas: PID,Arrival,Burst,Priority,Pages[,Queue]. Opcionalmente Memoria=, PageSize=">
           📁 Archivo: <input id="in-file" type="file" accept=".txt">
         </label>
       </div>
@@ -70,42 +73,43 @@
         <summary>Limitaciones de este módulo</summary>
         <ul>
           <li>El PID debe ser único; no se pueden duplicar.</li>
-          <li>Burst mínimo = 1 (no se aceptan procesos vacíos).</li>
-          <li>Queue está limitado a 0–2 (3 niveles fijos para MLQ/MLFQ).</li>
-          <li>Affinity solo respeta cores cuyo índice exista al momento de simular.</li>
-          <li>El parser de archivo ignora líneas vacías y las que empiezan con <code>#</code>.</li>
+          <li>Burst mínimo = 1, Threads ≥ 1, Forks ≥ 0.</li>
+          <li>Threads ≤ 8 y Forks ≤ 5 para evitar saturar el Gantt.</li>
+          <li>Queue limitado a 0–2 (3 niveles para MLQ/MLFQ).</li>
+          <li>Cada proceso declarado expande a (F+1)·T ejecutables al simular.</li>
         </ul>
       </details>
     </div>
     <div class="panel">
       <div class="panel-header">
         <h2>Procesos en cola (<span id="proc-count">0</span>)</h2>
+        <span class="hint" id="exec-preview">— ejecutables al simular: 0</span>
       </div>
       <div class="scroll-y">
         <table class="data">
           <thead><tr><th>PID</th><th>AT</th><th>BT</th><th>Pri</th>
-                     <th>Pg</th><th>Aff</th><th>Q</th><th></th></tr></thead>
+                     <th>Pg</th><th>Aff</th><th>Q</th><th>T</th><th>F</th><th></th></tr></thead>
           <tbody id="process-list"></tbody>
         </table>
       </div>
-      <p class="hint mt-2">Cuando termines, ve a <strong>⚙️ Simulación</strong>.</p>
+      <p class="hint mt-2">Cuando termines, ve a <strong>⚙️ Scheduling</strong> o <strong>💾 Paginación</strong>.</p>
     </div>
   </div>
 </section>
 
-<!-- ============ TAB: SIMULACIÓN ============ -->
-<section data-tab-pane="sim" class="pane">
+<!-- ============ TAB: SCHEDULING ============ -->
+<section data-tab-pane="sched" class="pane">
   <div class="grid-3">
     <!-- Config + cores -->
     <div class="panel">
       <div class="panel-header">
-        <h2>Configuración</h2>
-        <button class="info-pill" data-tip-wide="Elige el algoritmo de scheduling, # de cores (Web Workers reales en threads del SO) y el quantum (solo para RR/MLQ/MLFQ).">ℹ</button>
+        <h2>Configuración Scheduling</h2>
+        <button class="info-pill" data-tip-wide="Algoritmo de scheduling, # cores (cada uno es un Web Worker = thread del SO), y quantum (RR/MLQ/MLFQ).">ℹ</button>
       </div>
       <div class="form-grid-tight">
-        <label>Cores <input id="in-cores" type="number" min="1" max="16" value="4" data-tip="Cada core es un Web Worker = 1 thread del SO"></label>
+        <label>Cores <input id="in-cores" type="number" min="1" max="16" value="4"></label>
         <label>Algoritmo
-          <select id="in-algo" data-tip="Cambia para ver cómo varía el Gantt">
+          <select id="in-algo">
             <optgroup label="Non-Preemptive">
               <option value="FCFS">FCFS</option>
               <option value="SJF">SJF</option>
@@ -124,26 +128,14 @@
         <label id="lbl-quantum" style="display:none">
           Quantum <input id="in-quantum" type="number" min="1" value="3">
         </label>
-        <label>Memoria <input id="in-mem-size" type="number" min="4" value="64"></label>
-        <label>Page size <input id="in-page-size" type="number" min="1" value="4"></label>
-        <label>Frames <strong id="lbl-frames">16</strong></label>
-        <label>Reemplazo
-          <select id="in-mem-algo">
-            <option value="FIFO">FIFO</option>
-            <option value="LRU">LRU</option>
-            <option value="OPT">Óptimo</option>
-            <option value="CLOCK">Clock</option>
-            <option value="SC">Segunda Op.</option>
-          </select>
-        </label>
       </div>
       <div class="row controls mt-2">
-        <button id="btn-start" class="primary big">▶ Start</button>
-        <button id="btn-pause" class="ghost">⏸</button>
-        <button id="btn-resume" class="ghost">⏯</button>
-        <button id="btn-reset" class="ghost danger">⟲ Reset</button>
+        <button id="btn-sched-start" class="primary big">▶ Iniciar Scheduling</button>
+        <button id="btn-sched-pause" class="ghost">⏸</button>
+        <button id="btn-sched-resume" class="ghost">⏯</button>
+        <button id="btn-sched-reset" class="ghost danger">⟲ Reset</button>
       </div>
-      <div class="state-diagram" data-tip-wide="Diagrama de estados de proceso. Los círculos se iluminan cuando hay procesos en ese estado.">
+      <div class="state-diagram" data-tip-wide="Diagrama de estados. Los nodos se iluminan cuando hay procesos en ese estado.">
         <h3>Estados</h3>
         <div class="state-flow">
           <div class="state-node" data-state="NEW">NEW</div>
@@ -156,13 +148,13 @@
         </div>
       </div>
       <details class="limits">
-        <summary>Limitaciones de este módulo</summary>
+        <summary>Limitaciones</summary>
         <ul>
-          <li>Máx 16 cores (limitación práctica de Web Workers en navegador).</li>
+          <li>Máx 16 cores (limitación práctica de Web Workers).</li>
           <li>RR/MLQ/MLFQ requieren quantum ≥ 1.</li>
-          <li>El cambio de algoritmo requiere Reset y Start.</li>
+          <li>Cambio de algoritmo requiere Reset y nuevo Start.</li>
           <li>Si no hay procesos, Start está deshabilitado.</li>
-          <li>El tiempo simulado avanza cada 250 ms reales.</li>
+          <li>Threads y Forks declarados en Procesos se expanden aquí.</li>
         </ul>
       </details>
     </div>
@@ -171,7 +163,7 @@
     <div class="panel">
       <div class="panel-header">
         <h2>Cores en vivo</h2>
-        <button class="info-pill" data-tip-wide="Cada caja es un Web Worker corriendo en un thread real del SO. El PID que muestra es el proceso que ese core está ejecutando ahora.">ℹ</button>
+        <button class="info-pill" data-tip-wide="Cada caja es un Web Worker corriendo en un thread real del SO. El PID que muestra es el ejecutable (puede ser P1, P1.t1, P1a, etc.) que ese core procesa.">ℹ</button>
       </div>
       <div id="cores" class="cores-grid"></div>
       <div id="doom-arena" class="doom-arena-grid" style="display:none"></div>
@@ -179,7 +171,8 @@
       <div class="scroll-x hide-in-doom">
         <svg id="gantt" width="100%" height="160"></svg>
       </div>
-      <div class="row mt-1 hide-in-doom"><span>Ready:</span> <code id="queue-ready">—</code></div>
+      <h3 class="mt-2 hide-in-doom">Cola Ready (próximos en correr)</h3>
+      <div id="ready-tokens" class="ready-tokens hide-in-doom"></div>
       <div class="doom-gantt-hint">📊 El Gantt completo aparece en el resumen al terminar la simulación.</div>
     </div>
 
@@ -187,7 +180,7 @@
     <div class="panel">
       <div class="panel-header">
         <h2>Métricas</h2>
-        <button class="info-pill" data-tip-wide="TAT = turnaround. WT = waiting. RT = response (primer dispatch − arrival). Speedup = burst total / tiempo real.">ℹ</button>
+        <button class="info-pill" data-tip-wide="TAT = turnaround. WT = waiting. RT = response. Speedup = burst total / tiempo real.">ℹ</button>
       </div>
       <ul class="metrics big">
         <li>Avg TAT: <strong id="metric-tat">0</strong></li>
@@ -204,9 +197,8 @@
     </div>
   </div>
 
-  <!-- Tabla de estados full-width below -->
   <div class="panel mt-2">
-    <div class="panel-header"><h2>Tabla de estados y métricas por proceso</h2></div>
+    <div class="panel-header"><h2>Tabla de estados y métricas por ejecutable</h2></div>
     <div class="scroll-y small-h">
       <table class="data small">
         <thead><tr><th>PID</th><th>Estado</th><th>Restante</th><th>Burst</th>
@@ -217,13 +209,53 @@
   </div>
 </section>
 
-<!-- ============ TAB: MEMORIA ============ -->
-<section data-tab-pane="memoria" class="pane">
-  <div class="grid-2">
+<!-- ============ TAB: PAGINACIÓN ============ -->
+<section data-tab-pane="paging" class="pane">
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Configuración Paginación</h2>
+        <button class="info-pill" data-tip-wide="Tamaño total de memoria, tamaño de página y algoritmo de reemplazo. # frames = memoria / page size.">ℹ</button>
+      </div>
+      <div class="form-grid-tight">
+        <label>Memoria <input id="in-mem-size" type="number" min="4" value="64"></label>
+        <label>Page size <input id="in-page-size" type="number" min="1" value="4"></label>
+        <label>Frames <strong id="lbl-frames">16</strong></label>
+        <label>Reemplazo
+          <select id="in-mem-algo">
+            <option value="FIFO">FIFO</option>
+            <option value="LRU">LRU</option>
+            <option value="OPT">Óptimo</option>
+            <option value="CLOCK">Clock</option>
+            <option value="SC">Segunda Op.</option>
+          </select>
+        </label>
+      </div>
+      <div class="row controls mt-2">
+        <button id="btn-paging-start" class="primary big">▶ Iniciar Paginación</button>
+        <button id="btn-paging-pause" class="ghost">⏸</button>
+        <button id="btn-paging-resume" class="ghost">⏯</button>
+        <button id="btn-paging-reset" class="ghost danger">⟲ Reset</button>
+      </div>
+      <p class="hint mt-2">
+        Threads del mismo proceso comparten páginas (menos faults). Forks duplican la memoria (más faults).
+      </p>
+      <details class="limits">
+        <summary>Limitaciones</summary>
+        <ul>
+          <li>Las referencias se generan con un patrón sintético (25% salto, 30% secuencial, 45% localidad).</li>
+          <li>Óptimo necesita conocer el futuro — usa la cadena precomputada por proceso.</li>
+          <li>Fragmentación interna se aproxima asumiendo uso proporcional.</li>
+          <li>Memoria debe ser múltiplo de page size (se redondea hacia abajo).</li>
+          <li>Esta simulación es independiente de Scheduling — corre en su propio motor.</li>
+        </ul>
+      </details>
+    </div>
+
     <div class="panel">
       <div class="panel-header">
         <h2>Memoria principal</h2>
-        <button class="info-pill" data-tip-wide="Cada frame es un marco físico. Cada caja se pinta del color del PID dueño. Verde = hit reciente. Rojo = page fault recién ocurrido.">ℹ</button>
+        <button class="info-pill" data-tip-wide="Cada frame se pinta del color del owner (proceso o fork). Verde = hit reciente. Rojo = page fault recién ocurrido.">ℹ</button>
       </div>
       <div class="mem-stats">
         <span>Algoritmo: <strong id="mem-algo">—</strong></span>
@@ -238,24 +270,17 @@
         <strong>Último evento:</strong>
         <span id="mem-last-event" class="mem-event">—</span>
       </div>
-      <details class="limits">
-        <summary>Limitaciones de este módulo</summary>
-        <ul>
-          <li>Las referencias se generan con un patrón sintético (25% salto, 30% secuencial, 45% localidad). No se cargan trazas reales.</li>
-          <li>Óptimo necesita conocer el futuro — usa la cadena precomputada por proceso.</li>
-          <li>Fragmentación interna se aproxima asumiendo que las páginas cargadas usan proporcionalmente la memoria declarada.</li>
-          <li>El tamaño de memoria debe ser múltiplo de page size (se redondea hacia abajo).</li>
-        </ul>
-      </details>
     </div>
+
     <div class="panel">
       <div class="panel-header"><h2>Tabla de páginas</h2></div>
       <div class="scroll-y">
         <table class="data small">
-          <thead><tr><th>PID</th><th>Página</th><th>Marco</th><th>V</th><th>R</th></tr></thead>
+          <thead><tr><th>Owner</th><th>Página</th><th>Marco</th><th>V</th><th>R</th></tr></thead>
           <tbody id="page-table"></tbody>
         </table>
       </div>
+      <p class="hint mt-2">"Owner" agrupa threads (P1 = todos los threads de P1) y separa forks (P1a, P1b son owners distintos).</p>
     </div>
   </div>
 </section>
@@ -265,7 +290,7 @@
   <div class="panel">
     <div class="panel-header">
       <h2>Comparación de algoritmos</h2>
-      <button class="info-pill" data-tip-wide="Corre múltiples simulaciones en paralelo lógico (motor síncrono determinista) sobre los mismos procesos. Muy rápido. La fila verde es la mejor según la métrica del gráfico.">ℹ</button>
+      <button class="info-pill" data-tip-wide="Corre múltiples simulaciones en paralelo lógico (motor síncrono determinista). La fila verde es la mejor según la métrica clave.">ℹ</button>
     </div>
     <div class="row">
       <button id="btn-cmp-sched" class="primary">⚡ Comparar Scheduling</button>
@@ -273,64 +298,15 @@
       <button id="btn-cmp-cores" class="primary">⚡ Comparar # Cores</button>
       <button id="btn-cmp-mem-size" class="primary">⚡ Comparar Tamaños de Memoria</button>
     </div>
-    <p class="hint">Las comparaciones usan un motor headless determinista para correr decenas de simulaciones al instante. El simulador en vivo sigue usando workers reales.</p>
+    <p class="hint">Las comparaciones usan un motor headless determinista. Los simuladores en vivo (Scheduling y Paginación) siguen usando workers reales.</p>
     <div id="cmp-result"></div>
     <details class="limits">
       <summary>Limitaciones</summary>
       <ul>
-        <li>El motor de comparación es síncrono y no usa Workers (sería demasiado lento correr 9 algoritmos en paralelo real).</li>
-        <li>Las métricas son deterministas, pero la cadena de páginas varía con el PID (semilla = hash del PID).</li>
-        <li>El highlight verde marca el mínimo en una sola métrica (TAT, faults, o tiempo total según el barrido).</li>
-      </ul>
-    </details>
-  </div>
-</section>
-
-<!-- ============ TAB: FORK BACKEND ============ -->
-<section data-tab-pane="fork" class="pane">
-  <div class="panel">
-    <div class="panel-header">
-      <h2>Fork Backend (Node) — multiprocesamiento real</h2>
-      <button class="info-pill" data-tip-wide="Cada proceso del simulador se materializa como un proceso real del SO con PID nativo (verificable con `tasklist`). Verifica el demo de fork() del enunciado.">ℹ</button>
-    </div>
-    <div class="row">
-      <label>URL <input id="fk-url" value="ws://localhost:8765" size="22"></label>
-      <button id="fk-connect" class="primary">🔌 Conectar</button>
-      <label>Algoritmo
-        <select id="fk-algo">
-          <option value="FCFS">FCFS</option>
-          <option value="SJF">SJF</option>
-          <option value="HRRN">HRRN</option>
-          <option value="PRIO">Priority</option>
-        </select>
-      </label>
-      <button id="fk-run" class="primary">▶ Ejecutar en backend</button>
-      <button id="fk-stop" class="ghost danger">⏹ Detener</button>
-      <span id="fk-status" class="fk-status">desconectado</span>
-    </div>
-    <div class="callout">
-      <strong>Antes de conectar:</strong> abre una terminal y corre
-      <code>cd server &amp;&amp; npm install &amp;&amp; npm start</code>.
-      Para ver los forks reales: <code>tasklist | findstr node</code>.
-    </div>
-    <div class="grid-2 mt-2">
-      <div>
-        <h3>Cores (cada PID es un fork real)</h3>
-        <div id="fk-cores" class="cores-grid"></div>
-        <div id="fk-summary"></div>
-      </div>
-      <div>
-        <h3>Eventos del kernel</h3>
-        <div id="fk-log" class="fk-log"></div>
-      </div>
-    </div>
-    <details class="limits">
-      <summary>Limitaciones</summary>
-      <ul>
-        <li><strong>Solo non-preemptive</strong> (FCFS, SJF, HRRN, Priority). Preempción real con fork requiere SIGSTOP/SIGCONT, que no es portable a Windows.</li>
-        <li>No hay módulo de memoria en el backend — se enfoca solo en demostrar fork().</li>
-        <li>Si el backend no está corriendo verás "error de conexión".</li>
-        <li>El consumo de CPU es real: spawning 30 forks simultáneos puede saturar tu equipo.</li>
+        <li>El motor de comparación es síncrono (no usa workers).</li>
+        <li>Cadena de páginas determinista por PID (semilla = hash del PID).</li>
+        <li>Highlight verde: mínimo en una sola métrica.</li>
+        <li>La comparación usa la lista expandida (con threads y forks).</li>
       </ul>
     </details>
   </div>
@@ -342,12 +318,11 @@
     <div class="panel">
       <div class="panel-header"><h2>Cómo usar el simulador</h2></div>
       <ol class="help-steps">
-        <li><strong>Carga procesos</strong> en la pestaña <em>Procesos</em>: agrégalos a mano, usa una demo, o sube un archivo.</li>
-        <li><strong>Configura</strong> en <em>Simulación</em>: # de cores (cada uno = thread real), algoritmo, quantum si aplica, y memoria.</li>
-        <li>Pulsa <strong>▶ Start</strong>. Verás los cores ejecutando procesos en paralelo y el Gantt con una fila por core.</li>
-        <li>Mira la pestaña <em>Memoria</em> en cualquier momento para ver page faults y reemplazos.</li>
-        <li>Usa <em>Comparar</em> para correr decenas de simulaciones de un click y ver cuál algoritmo gana.</li>
-        <li>Para demostrar <code>fork()</code> real, abre el backend Node y usa la pestaña <em>Fork Backend</em>.</li>
+        <li><strong>Procesos</strong>: agrega procesos con PID, arrival, burst, prioridad, páginas, threads (T) y forks (F).</li>
+        <li><strong>Scheduling</strong>: configura # cores y algoritmo. Pulsa Start. Verás los cores ejecutando los ejecutables expandidos en paralelo.</li>
+        <li><strong>Paginación</strong>: configura memoria/page size/algoritmo de reemplazo. Pulsa Start. Verás cómo entran y salen páginas.</li>
+        <li><strong>Comparar</strong>: ejecuta todos los algoritmos sobre los mismos procesos para ver cuál gana.</li>
+        <li><strong>Modo RIP &amp; TEAR</strong>: estética Doom para Scheduling. La lógica es la misma, solo la presentación cambia.</li>
       </ol>
       <button class="primary" id="btn-show-tutorial">↺ Ver tutorial de bienvenida</button>
     </div>
@@ -355,17 +330,19 @@
       <div class="panel-header"><h2>Conceptos clave</h2></div>
       <dl class="glossary">
         <dt>Web Worker</dt>
-        <dd>API del navegador que corre JS en un thread del SO separado. Aquí: 1 worker = 1 core simulado.</dd>
-        <dt>fork()</dt>
-        <dd>Llamada UNIX que crea un proceso hijo. En el backend Node, cada proceso del simulador es un fork real con su PID.</dd>
+        <dd>API del navegador que corre JS en un thread del SO separado. 1 worker = 1 core simulado.</dd>
+        <dt>Thread (T)</dt>
+        <dd>Hilo de ejecución dentro de un proceso. Comparte memoria con sus hermanos. T=3 genera 3 ejecutables que comparten páginas.</dd>
+        <dt>Fork (F)</dt>
+        <dd>Copia independiente del proceso. Cada fork tiene su propia memoria. F=2 genera original + 2 forks separados.</dd>
         <dt>Quantum</dt>
         <dd>Tiempo máximo que un proceso puede correr antes de ser desalojado (RR, MLQ, MLFQ).</dd>
         <dt>Page Fault</dt>
-        <dd>El proceso accede a una página que no está en memoria física. El reemplazo decide a quién sacar.</dd>
+        <dd>Acceso a una página que no está en memoria física. El reemplazo decide a quién sacar.</dd>
         <dt>Affinity</dt>
-        <dd>Restricción de en qué cores puede correr un proceso. Útil para escenarios de balance/desbalance.</dd>
+        <dd>Restricción de en qué cores puede correr un ejecutable.</dd>
         <dt>Speedup</dt>
-        <dd>burst total / tiempo real. Mide la ganancia por paralelismo (ideal: igual al # de cores).</dd>
+        <dd>burst total / tiempo real. Mide la ganancia por paralelismo.</dd>
       </dl>
     </div>
   </div>
@@ -386,9 +363,10 @@
 <script src="js/worker-source.js"></script>
 <script src="js/core-pool.js"></script>
 <script src="js/memory-manager.js"></script>
+<script src="js/expand-executables.js"></script>
 <script src="js/scheduler.js"></script>
+<script src="js/paging-simulator.js"></script>
 <script src="js/fast-sim.js"></script>
 <script src="js/main.js"></script>
-<script src="js/fork-client.js"></script>
 </body>
 </html>

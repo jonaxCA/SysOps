@@ -67,11 +67,11 @@
     const html = `
       <p>Bienvenido al simulador de Sistema Operativo.</p>
       <ol class="tut-steps">
-        <li><strong>📋 Procesos</strong> — agrega procesos a mano o usa "Demo / Alta carga".</li>
-        <li><strong>⚙️ Simulación</strong> — elige algoritmo, # de cores, y dale Play. Cada core es un Web Worker (thread real).</li>
-        <li><strong>💾 Memoria</strong> — observa frames, page table y reemplazos en vivo.</li>
-        <li><strong>📊 Comparar</strong> — corre todos los algoritmos a la vez y mira la mejor opción.</li>
-        <li><strong>🍴 Fork Backend</strong> — ejecuta los procesos como forks reales del SO (PID nativos).</li>
+        <li><strong>📋 Procesos</strong> — agrega procesos con threads (T) y forks (F). T comparten memoria, F la duplican.</li>
+        <li><strong>⚙️ Scheduling</strong> — elige algoritmo y # de cores. Cada core es un Web Worker (thread real del SO). Verás el Gantt y métricas.</li>
+        <li><strong>💾 Paginación</strong> — configura memoria y reemplazo. Motor independiente: corre cuando quieras sin necesidad de scheduling.</li>
+        <li><strong>📊 Comparar</strong> — corre todos los algoritmos a la vez sobre los mismos procesos.</li>
+        <li><strong>RIP &amp; TEAR</strong> — modo Doom para Scheduling: HUD retro, cores como arenas, kills explosivos.</li>
       </ol>
       <p class="hint">Los íconos <span class="info-pill">ℹ</span> en cada panel explican qué hace y sus limitaciones. Las advertencias en rojo te dicen qué corregir antes de simular.</p>
       <div class="modal-actions">

@@ -52,6 +52,14 @@ body.doom-mode input:focus, body.doom-mode select:focus {
 }
 body.doom-mode table.data th { background: #11111a; color: #ff8800; }
 body.doom-mode table.data td { color: #aaa; border-color: #1a1a22; }
+body.doom-mode .ready-tokens {
+  background: #06060a; border-color: #1a1a22;
+}
+body.doom-mode .ready-token {
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  border: 1px solid #000;
+}
+body.doom-mode .ready-empty { color: #555; }
 body.doom-mode button:not(.primary):not(.doom-toggle) {
   background: #11111a; color: #aaa; border-color: #2a2a3a;
 }
@@ -289,9 +297,13 @@ body.doom-mode .doom-arena-grid {
 }
 .gantt-wrap {
   background: #06060a; border: 1px solid #1a1a22;
-  padding: 6px; overflow-x: auto;
+  padding: 8px; overflow: hidden;
 }
-.gantt-wrap svg { background: #0a0a0e; }
+.gantt-wrap svg {
+  background: #0a0a0e; display: block; width: 100%; height: auto;
+}
+.gantt-wrap svg text { fill: #ddd; }
+.gantt-wrap svg line { stroke: #333; }
 .interm-close {
   display: block; margin: 0 auto;
   background: #6b0000; color: #ffaa00; border: 2px solid #cc2200;
